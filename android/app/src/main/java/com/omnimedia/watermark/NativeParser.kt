@@ -28,7 +28,7 @@ object NativeParser {
 
     private val API_ENDPOINTS = listOf(
         "https://qq520.l2.ink/parse",
-        "http://192.168.1.11:8888/parse",
+        "https://q-qwatermark-app-tf99.vercel.app/parse",
         "https://q-qwatermark-app.vercel.app/parse"
     )
 

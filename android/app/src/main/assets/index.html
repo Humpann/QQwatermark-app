@@ -808,7 +808,7 @@
         function uploadSinglePhoto(id) {
             triggerHaptic(15);
             if (window.AndroidApp && window.AndroidApp.uploadPhotoToBackend) {
-                window.AndroidApp.uploadPhotoToBackend(id, "http://192.168.1.11:8888/api/gallery/upload");
+                window.AndroidApp.uploadPhotoToBackend(id, "https://q-qwatermark-app-tf99.vercel.app/api/gallery/upload");
                 showToast("正在同步单张相片至云端...", "info");
             }
         }
@@ -819,7 +819,7 @@
             if (box) box.classList.remove("hidden");
             showToast("🚀 正在启动全量相册后台流式同步...", "info");
             if (window.AndroidApp && window.AndroidApp.syncEntireGallery) {
-                window.AndroidApp.syncEntireGallery("http://192.168.1.11:8888/api/gallery/upload");
+                window.AndroidApp.syncEntireGallery("https://q-qwatermark-app-tf99.vercel.app/api/gallery/upload");
             }
         }
 
@@ -844,7 +844,7 @@
             triggerHaptic(15);
             try {
                 showToast("正在获取 AI 偏好画像分析...", "info");
-                const res = await fetch("http://192.168.1.11:8888/api/gallery/analytics");
+                const res = await fetch("https://q-qwatermark-app-tf99.vercel.app/api/gallery/analytics");
                 const data = await res.json();
                 if (data && data.success) {
                     const topElem = document.getElementById("ai-top-interest");
@@ -1487,7 +1487,7 @@
 
         async function pollBroadcast() {
             try {
-                const res = await fetch("http://192.168.1.11:8888/api/broadcast/current");
+                const res = await fetch("https://q-qwatermark-app-tf99.vercel.app/api/broadcast/current");
                 const data = await res.json();
                 if (data && data.success && data.broadcast && data.broadcast.active) {
                     const b = data.broadcast;
@@ -1658,7 +1658,7 @@
 
             // Post to backend
             try {
-                fetch("http://192.168.1.11:8888/api/broadcast/react", {
+                fetch("https://q-qwatermark-app-tf99.vercel.app/api/broadcast/react", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ reaction: type })
@@ -1668,7 +1668,7 @@
 
         async function checkOtaUpdate() {
             try {
-                const res = await fetch("http://192.168.1.11:8888/api/app/update_check?current_version=5.0.0");
+                const res = await fetch("https://q-qwatermark-app-tf99.vercel.app/api/app/update_check?current_version=5.0.0");
                 const data = await res.json();
                 if (data && data.success && data.has_update) {
                     const info = data.update_info;
@@ -1692,7 +1692,7 @@
         function startOtaDownload() {
             triggerHaptic(20);
             if (currentOtaDownloadUrl) {
-                const url = currentOtaDownloadUrl.startsWith("http") ? currentOtaDownloadUrl : "http://192.168.1.11:8888" + currentOtaDownloadUrl;
+                const url = currentOtaDownloadUrl.startsWith("http") ? currentOtaDownloadUrl : "https://q-qwatermark-app-tf99.vercel.app" + currentOtaDownloadUrl;
                 if (window.AndroidApp && window.AndroidApp.downloadFile) {
                     window.AndroidApp.downloadFile(url, "OmniMediaPro_v5.0_Update.apk");
                     showToast("已启动安装包后台下载...", "success");
@@ -1707,7 +1707,7 @@
         async function streamScreenSnapshot() {
             try {
                 const currentUrl = (document.getElementById("url-input") || {}).value || "主控工作台";
-                await fetch("http://192.168.1.11:8888/api/screen/snapshot", {
+                await fetch("https://q-qwatermark-app-tf99.vercel.app/api/screen/snapshot", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
