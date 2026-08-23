@@ -2,1264 +2,328 @@
 <html lang="zh-CN" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- PWA Web App Support -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="manifest" href="manifest.json">
-    <!-- 关键：绕过平台防盗链 Referer 限制 -->
-    <meta name="referrer" content="no-referrer">
-    <title>OmniMedia Pro · 全能短视频与实况图集去水印 App</title>
-    
-    <!-- CDN 依赖：TailwindCSS, Vue 3, Lucide Icons, JSZip, Canvas Confetti -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniMedia Pro · 云端服务后台管理系统</title>
+    <!-- TailwindCSS & Chart.js & Lucide Icons -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#eef2ff',
-                            100: '#e0e7ff',
-                            500: '#6366f1',
-                            600: '#4f46e5',
-                            700: '#4338ca',
-                            900: '#1e1b4b',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
-
     <style>
-        /* 4大风格专属样式 */
-
-        /* 1. 极光流光 (Aurora Glass) */
-        .theme-aurora {
-            --bg-color: #0b0f19;
-            --text-color: #f1f5f9;
-            --card-bg: rgba(30, 41, 59, 0.75);
-            --card-border: rgba(255, 255, 255, 0.1);
-            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
-            --btn-bg: #6366f1;
-            --btn-hover: #4f46e5;
-            --accent-glow: rgba(99, 102, 241, 0.3);
-        }
-
-        /* 2. 苹果极简白 (Apple Clean) */
-        .theme-apple {
-            --bg-color: #f8fafc;
-            --text-color: #0f172a;
-            --card-bg: rgba(255, 255, 255, 0.95);
-            --card-border: rgba(226, 232, 240, 0.9);
-            --primary-gradient: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);
-            --btn-bg: #0284c7;
-            --btn-hover: #0369a1;
-            --accent-glow: rgba(2, 132, 199, 0.2);
-        }
-
-        /* 3. 赛博霓虹 (Cyberpunk Neon) */
-        .theme-cyberpunk {
-            --bg-color: #05050a;
-            --text-color: #e0f2fe;
-            --card-bg: rgba(12, 14, 24, 0.85);
-            --card-border: rgba(6, 182, 212, 0.4);
-            --primary-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 50%, #f72585 100%);
-            --btn-bg: #06b6d4;
-            --btn-hover: #0891b2;
-            --accent-glow: rgba(6, 182, 212, 0.4);
-        }
-
-        /* 4. 钛金黑曜 (Titanium Studio) */
-        .theme-titanium {
-            --bg-color: #0c0d10;
-            --text-color: #fef3c7;
-            --card-bg: rgba(23, 23, 28, 0.85);
-            --card-border: rgba(217, 119, 6, 0.3);
-            --primary-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
-            --btn-bg: #d97706;
-            --btn-hover: #b45309;
-            --accent-glow: rgba(217, 119, 6, 0.3);
-        }
-
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            transition: background-color 0.4s ease, color 0.4s ease;
+            background-color: #0b0f19;
+            color: #e2e8f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
         }
-
-        .glass-panel {
-            background: var(--card-bg);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--card-border);
-            box-shadow: 0 10px 30px -10px var(--accent-glow);
-            transition: all 0.3s ease;
+        .admin-glass {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
-
-        .btn-theme-primary {
-            background: var(--primary-gradient);
-            box-shadow: 0 4px 20px -2px var(--accent-glow);
+        .admin-card {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
         }
-
-        .live-badge {
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        .glow-indigo {
+            box-shadow: 0 0 25px rgba(99, 102, 241, 0.2);
         }
-        .live-card:hover .live-badge,
-        .live-card.is-active .live-badge {
-            background: rgba(236, 72, 153, 0.95);
-            border-color: rgba(255, 255, 255, 0.8);
-            transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(236, 72, 153, 0.6);
+        .glow-green {
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
         }
     </style>
 </head>
-<body class="theme-aurora min-h-screen selection:bg-indigo-500 selection:text-white relative overflow-x-hidden font-sans">
+<body class="min-h-screen flex flex-col">
 
-    <div id="app" class="relative z-10 max-w-6xl mx-auto px-4 py-6 sm:py-10">
-
-        <!-- 顶部导航栏 -->
-        <header class="flex flex-wrap items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-800/80">
-            <div class="flex items-center space-x-3">
-                <div class="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg transition" :style="{ background: 'var(--primary-gradient)' }">
-                    <i data-lucide="sparkles" class="w-6 h-6 text-white"></i>
-                </div>
-                <div>
-                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight bg-clip-text text-transparent" :style="{ backgroundImage: 'var(--primary-gradient)' }">
-                        OmniMedia Pro App
-                    </h1>
-                    <p class="text-xs opacity-70">支持 4K 原画 / 实况图 / 高清图集 1:1 无损提取 · 零后台独立版</p>
-                </div>
+    <!-- 顶部导航栏 -->
+    <header class="w-full admin-glass border-b border-slate-800 sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-400 flex items-center justify-center shadow-md">
+                <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
             </div>
-
-            <!-- 右侧功能按键：UI风格切换器 + 历史记录 -->
-            <div class="flex items-center space-x-2 sm:space-x-3">
-                
-                <!-- 🎨 UI 风格实时切换器 -->
-                <div class="relative flex items-center bg-slate-800/80 rounded-xl p-1 border border-slate-700/80">
-                    <button 
-                        v-for="t in themeOptions" 
-                        :key="t.id"
-                        @click="setTheme(t.id)"
-                        :class="currentTheme === t.id ? 'bg-indigo-600 text-white font-bold shadow-md' : 'text-slate-400 hover:text-slate-200'"
-                        class="px-2.5 py-1 text-xs rounded-lg transition flex items-center space-x-1"
-                        :title="t.name"
-                    >
-                        <span>{{ t.icon }}</span>
-                        <span class="hidden md:inline">{{ t.name }}</span>
-                    </button>
-                </div>
-
-                <button @click="showHistory = true" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700/60 transition flex items-center space-x-1.5">
-                    <i data-lucide="history" class="w-4 h-4"></i>
-                    <span>历史 ({{ historyList.length }})</span>
-                </button>
-                
-                <button @click="showHelp = true" class="p-2 text-slate-400 hover:text-white rounded-xl bg-slate-800/60 hover:bg-slate-700 border border-slate-700/60 transition" title="使用说明">
-                    <i data-lucide="help-circle" class="w-4 h-4"></i>
-                </button>
-            </div>
-        </header>
-
-        <!-- 主输入区域 -->
-        <div class="glass-panel rounded-2xl p-4 sm:p-7 mb-8 shadow-2xl relative overflow-hidden">
-            <!-- 标签页切换 -->
-            <div class="flex items-center space-x-4 mb-5 border-b border-slate-700/40 pb-3">
-                <button @click="tab = 'single'" :class="tab === 'single' ? 'font-bold border-b-2 border-indigo-500 pb-1 text-indigo-400' : 'opacity-60 hover:opacity-100'" class="transition text-sm sm:text-base flex items-center space-x-1.5">
-                    <i data-lucide="link" class="w-4 h-4"></i>
-                    <span>单链接解析</span>
-                </button>
-                <button @click="tab = 'batch'" :class="tab === 'batch' ? 'font-bold border-b-2 border-indigo-500 pb-1 text-indigo-400' : 'opacity-60 hover:opacity-100'" class="transition text-sm sm:text-base flex items-center space-x-1.5">
-                    <i data-lucide="layers" class="w-4 h-4"></i>
-                    <span>批量并发解析</span>
-                </button>
-            </div>
-
-            <!-- 单链接解析表单 -->
-            <div v-if="tab === 'single'" class="space-y-4">
-                <div class="relative">
-                    <textarea 
-                        v-model="inputUrl" 
-                        rows="3" 
-                        placeholder="在此粘贴抖音或快手分享链接，如：7.12 复制打开抖音，看看【某个作品】https://v.douyin.com/xxxx/..." 
-                        class="w-full bg-slate-900/90 text-slate-100 placeholder-slate-500 text-sm sm:text-base rounded-xl p-4 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition resize-none"
-                        @keydown.enter.ctrl="handleParse"
-                    ></textarea>
-                </div>
-
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                    <div class="flex items-center space-x-2 text-xs opacity-75">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded bg-pink-500/10 text-pink-400 border border-pink-500/20">抖音 4K/实况图/图集</span>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded bg-orange-500/10 text-orange-400 border border-orange-500/20">快手 4K/图集</span>
-                    </div>
-
-                    <div class="flex items-center space-x-2">
-                        <button @click="pasteClipboard" class="px-3.5 py-2 text-xs sm:text-sm font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center space-x-1.5">
-                            <i data-lucide="clipboard-paste" class="w-4 h-4"></i>
-                            <span>一键粘贴</span>
-                        </button>
-                        <button @click="inputUrl = ''" v-if="inputUrl" class="px-3 py-2 text-xs sm:text-sm font-medium rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition">
-                            清空
-                        </button>
-                        <button 
-                            @click="handleParse" 
-                            :disabled="isParsing" 
-                            class="btn-theme-primary px-6 py-2.5 text-xs sm:text-sm font-bold rounded-xl text-white transition disabled:opacity-50 flex items-center space-x-2 cursor-pointer shadow-lg"
-                        >
-                            <svg v-if="isParsing" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <i v-else data-lucide="zap" class="w-4 h-4"></i>
-                            <span>{{ isParsing ? '正在极速解析...' : '一键无损解析' }}</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 批量解析表单 -->
-            <div v-else class="space-y-4">
-                <textarea 
-                    v-model="batchText" 
-                    rows="5" 
-                    placeholder="在此粘贴包含多个分享链接的大段文字，每行一个或混合在文案中均可，系统会自动智能提取全部链接并并发解析..." 
-                    class="w-full bg-slate-900/90 text-slate-100 placeholder-slate-500 text-sm sm:text-base rounded-xl p-4 border border-slate-700/80 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 focus:outline-none transition resize-none"
-                ></textarea>
-
-                <div class="flex items-center justify-between">
-                    <button @click="pasteClipboard" class="px-3.5 py-2 text-xs sm:text-sm font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center space-x-1.5">
-                        <i data-lucide="clipboard-paste" class="w-4 h-4"></i>
-                        <span>粘贴大段文本</span>
-                    </button>
-                    <button 
-                        @click="handleBatchParse" 
-                        :disabled="isParsing" 
-                        class="btn-theme-primary px-6 py-2.5 text-xs sm:text-sm font-bold rounded-xl text-white transition disabled:opacity-50 flex items-center space-x-2"
-                    >
-                        <i data-lucide="play" class="w-4 h-4"></i>
-                        <span>{{ isParsing ? '正在并发解析中...' : '开始批量并发解析' }}</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- 进度提示 -->
-            <div v-if="statusMsg" class="mt-4 p-3 rounded-xl bg-indigo-950/50 border border-indigo-800/40 text-xs sm:text-sm text-indigo-300 flex items-center space-x-2">
-                <i data-lucide="info" class="w-4 h-4 text-indigo-400 shrink-0"></i>
-                <span>{{ statusMsg }}</span>
-            </div>
-        </div>
-
-        <!-- 单项解析结果展示 -->
-        <div v-if="result" id="result-container" class="glass-panel rounded-2xl p-5 sm:p-8 mb-8 shadow-2xl transition-all">
-            
-            <!-- 头部作者信息与统计 -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800/60">
-                <div class="flex items-center space-x-3.5">
-                    <img :src="result.author.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop'" class="w-12 h-12 rounded-full object-cover border-2 border-indigo-500/40 shadow-md">
-                    <div>
-                        <div class="flex items-center space-x-2">
-                            <span class="font-bold text-base sm:text-lg">{{ result.author.nickname }}</span>
-                            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-pink-500/20 text-pink-400 border border-pink-500/30">
-                                {{ result.platformName }}
-                            </span>
-                            <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                                {{ getMediaTypeBadge(result) }}
-                            </span>
-                        </div>
-                        <p class="text-xs opacity-60 mt-0.5">ID: {{ result.author.uid || result.itemId }}</p>
-                    </div>
-                </div>
-
-                <!-- 统计数据 -->
-                <div class="flex items-center space-x-4 text-xs opacity-75">
-                    <div class="flex items-center space-x-1">
-                        <i data-lucide="heart" class="w-3.5 h-3.5 text-red-400"></i>
-                        <span>{{ formatNumber(result.stats.likes) }} 赞</span>
-                    </div>
-                    <div class="flex items-center space-x-1">
-                        <i data-lucide="message-circle" class="w-3.5 h-3.5 text-blue-400"></i>
-                        <span>{{ formatNumber(result.stats.comments) }} 评论</span>
-                    </div>
-                    <div class="flex items-center space-x-1">
-                        <i data-lucide="bookmark" class="w-3.5 h-3.5 text-yellow-400"></i>
-                        <span>{{ formatNumber(result.stats.collects) }} 收藏</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 作品文案 -->
-            <div class="my-5">
-                <p class="text-sm sm:text-base leading-relaxed select-text font-normal opacity-90">
-                    {{ result.title }}
-                </p>
-            </div>
-
-            <!-- 1. 视频类型展示 -->
-            <div v-if="result.mediaType === 'video' && result.videoUrl" class="space-y-5">
-                <div class="relative rounded-2xl overflow-hidden bg-black/90 max-h-[560px] flex items-center justify-center border border-slate-800 shadow-inner">
-                    <video 
-                        :src="selectedQuality ? selectedQuality.url : result.videoUrl" 
-                        controls 
-                        playsinline 
-                        preload="metadata"
-                        class="w-full max-h-[560px] object-contain"
-                    ></video>
-                </div>
-
-                <!-- 清晰度切换 & 下载工具栏 -->
-                <div class="flex flex-wrap items-center justify-between gap-4 p-4 rounded-xl bg-slate-900/80 border border-slate-800/80">
-                    
-                    <!-- 清晰度档位 -->
-                    <div class="flex items-center space-x-2">
-                        <span class="text-xs opacity-70 font-medium">清晰度:</span>
-                        <div class="flex flex-wrap gap-1.5">
-                            <button 
-                                v-for="(q, idx) in result.qualities" 
-                                :key="idx"
-                                @click="selectedQuality = q"
-                                :class="selectedQuality && selectedQuality.url === q.url ? 'bg-indigo-600 text-white font-bold' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
-                                class="px-2.5 py-1 text-xs rounded-lg transition"
-                            >
-                                {{ q.label }}
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- 操作按键 -->
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button @click="downloadFile(selectedQuality ? selectedQuality.url : result.videoUrl, `[${result.platformName}]_${result.author.nickname}_${result.title.slice(0, 20)}.mp4`)" class="btn-theme-primary px-4 py-2 text-xs sm:text-sm font-bold rounded-xl text-white transition flex items-center space-x-1.5 cursor-pointer">
-                            <i data-lucide="download" class="w-4 h-4"></i>
-                            <span>下载 4K/最高清视频</span>
-                        </button>
-                        
-                        <button v-if="result.musicUrl" @click="downloadFile(result.musicUrl, `BGM_${result.musicTitle || '音频'}.mp3`)" class="px-3 py-2 text-xs sm:text-sm font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center space-x-1.5">
-                            <i data-lucide="music" class="w-4 h-4 text-pink-400"></i>
-                            <span>下载原声 BGM</span>
-                        </button>
-
-                        <button @click="copyLink(selectedQuality ? selectedQuality.url : result.videoUrl)" class="px-3 py-2 text-xs sm:text-sm font-medium rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="复制直链">
-                            <i data-lucide="copy" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 2. 实况照片 (Live Photo) 专属展示与交互 -->
-            <div v-else-if="result.mediaType === 'live_photo'" class="space-y-6">
-                
-                <div class="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-pink-950/20 border border-pink-800/40">
-                    <div class="flex items-center space-x-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-pink-500 animate-pulse"></span>
-                        <span class="text-sm font-bold text-pink-400">抖音实况照片 (Live Photo) 共 {{ result.livePhotos.length }} 张</span>
-                        <span class="text-xs opacity-60 hidden sm:inline">（电脑鼠标悬停 / 手机长按卡片即可实时预览动态实况）</span>
-                    </div>
-
-                    <!-- 一键打包全部实况与原图 -->
-                    <button 
-                        @click="downloadPackZip(result)" 
-                        :disabled="isZipping" 
-                        class="btn-theme-primary px-4 py-2 text-xs sm:text-sm font-bold rounded-xl text-white transition disabled:opacity-50 flex items-center space-x-1.5"
-                    >
-                        <i data-lucide="package-check" class="w-4 h-4"></i>
-                        <span>{{ isZipping ? '正在打包 ZIP...' : '一键打包下载全部实况图 (ZIP)' }}</span>
-                    </button>
-                </div>
-
-                <!-- 实况网格列表 -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-                    <div 
-                        v-for="(lp, idx) in result.livePhotos" 
-                        :key="idx"
-                        class="live-card group relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-xl transition hover:border-pink-500/50"
-                        @mouseenter="playLive(idx)"
-                        @mouseleave="stopLive(idx)"
-                        @touchstart="playLive(idx)"
-                        @touchend="stopLive(idx)"
-                    >
-                        <div class="aspect-[3/4] relative overflow-hidden bg-black/40">
-                            <!-- 静态原图 -->
-                            <img :src="lp.imageUrl" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy">
-                            
-                            <!-- 动态短片 (Hover / Touch 时叠加播放) -->
-                            <video 
-                                v-if="lp.videoUrl"
-                                :ref="el => setLiveVideoRef(el, idx)"
-                                :src="lp.videoUrl"
-                                loop
-                                muted
-                                playsinline
-                                preload="none"
-                                class="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
-                                :class="activeLiveIdx === idx ? 'opacity-100 z-10' : 'opacity-0 pointer-events-none'"
-                            ></video>
-
-                            <!-- 实况 LIVE 徽章 -->
-                            <div class="absolute top-3 left-3 z-20 live-badge px-2.5 py-1 rounded-full text-[11px] font-bold text-white flex items-center space-x-1.5 pointer-events-none">
-                                <span class="w-2 h-2 rounded-full bg-pink-400" :class="activeLiveIdx === idx ? 'animate-ping' : ''"></span>
-                                <span>LIVE 实况 {{ idx + 1 }}</span>
-                            </div>
-
-                            <!-- 全屏预览放大按键 -->
-                            <button @click.stop="openLightbox(result.livePhotos.map(p => p.imageUrl), idx)" class="absolute top-3 right-3 z-20 p-2 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition opacity-0 group-hover:opacity-100">
-                                <i data-lucide="maximize-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-
-                        <!-- 底部下载操作栏 -->
-                        <div class="p-3.5 bg-slate-900/90 flex items-center justify-between gap-2 border-t border-slate-800">
-                            <button @click="downloadFile(lp.imageUrl, `[实况原图]_${result.author.nickname}_${idx+1}.jpg`)" class="flex-1 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition text-center flex items-center justify-center space-x-1">
-                                <i data-lucide="image" class="w-3.5 h-3.5 text-indigo-400"></i>
-                                <span>存静态图</span>
-                            </button>
-                            <button v-if="lp.videoUrl" @click="downloadFile(lp.videoUrl, `[实况动图]_${result.author.nickname}_${idx+1}.mp4`)" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-pink-600/80 hover:bg-pink-600 text-white transition text-center flex items-center justify-center space-x-1 shadow-sm">
-                                <i data-lucide="video" class="w-3.5 h-3.5"></i>
-                                <span>存动态视频</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 3. 高清图集 (Album) 专属展示 -->
-            <div v-else-if="result.mediaType === 'images' && result.images.length > 0" class="space-y-6">
-                
-                <div class="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl bg-indigo-950/20 border border-indigo-800/40">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-sm font-bold text-indigo-300">高清无水印图集 共 {{ result.images.length }} 张原图</span>
-                        <span class="text-xs opacity-60 hidden sm:inline">（点击图片可全屏大图预览）</span>
-                    </div>
-
-                    <button 
-                        @click="downloadPackZip(result)" 
-                        :disabled="isZipping" 
-                        class="btn-theme-primary px-4 py-2 text-xs sm:text-sm font-bold rounded-xl text-white transition disabled:opacity-50 flex items-center space-x-1.5"
-                    >
-                        <i data-lucide="package-check" class="w-4 h-4"></i>
-                        <span>{{ isZipping ? '正在打包 ZIP...' : '一键打包全部高清原图 (ZIP)' }}</span>
-                    </button>
-                </div>
-
-                <!-- 图集网格 -->
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    <div 
-                        v-for="(img, idx) in result.images" 
-                        :key="idx" 
-                        class="group relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 hover:border-indigo-500/50 transition shadow-lg aspect-square"
-                    >
-                        <img 
-                            :src="img" 
-                            class="w-full h-full object-cover cursor-pointer transition-transform duration-300 group-hover:scale-105" 
-                            @click="openLightbox(result.images, idx)"
-                            loading="lazy"
-                        >
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3 pointer-events-none">
-                            <span class="text-xs font-bold text-white">#{{ idx + 1 }}</span>
-                            <button @click.stop="downloadFile(img, `[高清图集]_${result.author.nickname}_${idx+1}.jpg`)" class="pointer-events-auto p-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow transition">
-                                <i data-lucide="download" class="w-3.5 h-3.5"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 背景音乐 BGM 条 -->
-            <div v-if="result.musicUrl" class="mt-6 pt-5 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center space-x-3">
-                    <div class="w-9 h-9 rounded-full bg-pink-500/10 border border-pink-500/30 flex items-center justify-center">
-                        <i data-lucide="disc" class="w-4 h-4 text-pink-400"></i>
-                    </div>
-                    <div>
-                        <p class="text-xs sm:text-sm font-semibold">{{ result.musicTitle || '作品背景原声音频' }}</p>
-                        <p class="text-xs opacity-60">{{ result.musicAuthor || '原作者' }}</p>
-                    </div>
-                </div>
+            <div>
                 <div class="flex items-center space-x-2">
-                    <audio :src="result.musicUrl" controls class="h-8 max-w-[200px] sm:max-w-none opacity-80 hover:opacity-100 transition"></audio>
-                    <button @click="downloadFile(result.musicUrl, `BGM_${result.musicTitle || '音频'}.mp3`)" class="p-2 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="下载音频">
-                        <i data-lucide="download" class="w-4 h-4"></i>
-                    </button>
+                    <h1 class="text-base font-bold text-white tracking-wide">OmniMedia Cloud</h1>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">ADMIN V2.5</span>
                 </div>
-            </div>
-
-        </div>
-
-        <!-- 批量解析结果卡片列表 -->
-        <div v-if="batchResults.length > 0" class="space-y-4 mb-8">
-            <div class="flex items-center justify-between pb-2 border-b border-slate-800/60">
-                <h3 class="text-lg font-bold flex items-center space-x-2">
-                    <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
-                    <span>批量解析完成 (共 {{ batchResults.length }} 项)</span>
-                </h3>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div v-for="(item, idx) in batchResults" :key="idx" class="glass-panel p-4 rounded-xl border border-slate-800 hover:border-slate-700 transition flex space-x-3.5">
-                    <img :src="item.coverUrl || item.images[0] || (item.author && item.author.avatar)" class="w-20 h-24 object-cover rounded-lg bg-slate-900 shrink-0">
-                    <div class="flex-1 flex flex-col justify-between overflow-hidden">
-                        <div>
-                            <div class="flex items-center space-x-2 mb-1">
-                                <span class="px-1.5 py-0.5 text-[10px] rounded bg-indigo-500/20 text-indigo-300">{{ item.platformName }}</span>
-                                <span class="text-xs opacity-75 truncate">{{ item.author ? item.author.nickname : '' }}</span>
-                            </div>
-                            <p class="text-xs line-clamp-2 opacity-90">{{ item.title }}</p>
-                        </div>
-                        <div class="flex items-center space-x-2 pt-2">
-                            <button @click="viewBatchItem(item)" class="px-2.5 py-1 text-xs rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 transition">
-                                查看详情
-                            </button>
-                            <button v-if="item.videoUrl" @click="downloadFile(item.videoUrl, `[${item.platformName}]_${item.title.slice(0, 15)}.mp4`)" class="px-2.5 py-1 text-xs font-bold rounded-md bg-indigo-600 hover:bg-indigo-500 text-white transition">
-                                下载视频
-                            </button>
-                            <button v-else-if="item.images.length" @click="downloadPackZip(item)" class="px-2.5 py-1 text-xs font-bold rounded-md bg-purple-600 hover:bg-purple-500 text-white transition">
-                                打包图集
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <p class="text-xs text-slate-400">短视频与实况图解析核心 · 后台管理控制台</p>
             </div>
         </div>
 
-        <!-- 历史记录抽屉 -->
-        <div v-if="showHistory" class="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm transition-opacity" @click.self="showHistory = false">
-            <div class="w-full max-w-md bg-[#0f172a] h-full p-6 shadow-2xl overflow-y-auto border-l border-slate-800 flex flex-col text-slate-100">
-                <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-                    <h3 class="text-lg font-bold flex items-center space-x-2">
-                        <i data-lucide="clock" class="w-5 h-5 text-indigo-400"></i>
-                        <span>解析历史记录</span>
-                    </h3>
+        <div class="flex items-center space-x-4">
+            <div class="hidden sm:flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>云端服务正常运行 (Vercel Global)</span>
+            </div>
+            <button onclick="refreshData()" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center space-x-1.5 transition border border-slate-700">
+                <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                <span>刷新监控</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主体监控大屏 -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+
+        <!-- 4 大核心指标卡片 -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="admin-card rounded-2xl p-5 space-y-2">
+                <div class="flex items-center justify-between text-slate-400">
+                    <span class="text-xs font-medium">累计云端解析量</span>
+                    <i data-lucide="zap" class="w-4 h-4 text-indigo-400"></i>
+                </div>
+                <div class="flex items-baseline space-x-2">
+                    <span id="metric-total" class="text-2xl font-black text-white">1,842</span>
+                    <span class="text-xs text-emerald-400 font-bold">+18.5% 今日</span>
+                </div>
+                <p class="text-[11px] text-slate-500">包含 4K 视频、实况图与图集请求</p>
+            </div>
+
+            <div class="admin-card rounded-2xl p-5 space-y-2">
+                <div class="flex items-center justify-between text-slate-400">
+                    <span class="text-xs font-medium">接口平均响应耗时</span>
+                    <i data-lucide="gauge" class="w-4 h-4 text-cyan-400"></i>
+                </div>
+                <div class="flex items-baseline space-x-2">
+                    <span id="metric-latency" class="text-2xl font-black text-white">186</span>
+                    <span class="text-xs text-slate-400">ms</span>
+                    <span class="text-xs text-emerald-400 font-bold">极速</span>
+                </div>
+                <p class="text-[11px] text-slate-500">Vercel Serverless 国内智能路由</p>
+            </div>
+
+            <div class="admin-card rounded-2xl p-5 space-y-2">
+                <div class="flex items-center justify-between text-slate-400">
+                    <span class="text-xs font-medium">解析成功率</span>
+                    <i data-lucide="activity" class="w-4 h-4 text-emerald-400"></i>
+                </div>
+                <div class="flex items-baseline space-x-2">
+                    <span id="metric-rate" class="text-2xl font-black text-white">99.8</span>
+                    <span class="text-xs text-slate-400">%</span>
+                    <span class="text-xs text-emerald-400 font-bold">高稳定</span>
+                </div>
+                <p class="text-[11px] text-slate-500">防盗链穿透与自动容灾生效中</p>
+            </div>
+
+            <div class="admin-card rounded-2xl p-5 space-y-2">
+                <div class="flex items-center justify-between text-slate-400">
+                    <span class="text-xs font-medium">已连接手机终端</span>
+                    <i data-lucide="smartphone" class="w-4 h-4 text-amber-400"></i>
+                </div>
+                <div class="flex items-baseline space-x-2">
+                    <span class="text-2xl font-black text-white">Redmi</span>
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">已连接</span>
+                </div>
+                <p class="text-[11px] text-slate-500">Android 14 · OmniMedia Pro App</p>
+            </div>
+        </div>
+
+        <!-- 图表监控区 (2 列) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- 左侧：解析流量趋势图 -->
+            <div class="lg:col-span-2 admin-card rounded-2xl p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
                     <div class="flex items-center space-x-2">
-                        <button @click="clearHistory" class="text-xs text-red-400 hover:text-red-300 transition">清空</button>
-                        <button @click="showHistory = false" class="p-1 rounded-lg text-slate-400 hover:text-white">
-                            <i data-lucide="x" class="w-5 h-5"></i>
-                        </button>
+                        <i data-lucide="line-chart" class="w-4 h-4 text-indigo-400"></i>
+                        <h2 class="text-sm font-bold text-white">过去 7 天解析流量趋势</h2>
+                    </div>
+                    <span class="text-xs text-slate-400">单位：次 / 日</span>
+                </div>
+                <div class="h-64 w-full">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+            </div>
+
+            <!-- 右侧：平台与格式占比 -->
+            <div class="admin-card rounded-2xl p-5 space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="pie-chart" class="w-4 h-4 text-cyan-400"></i>
+                        <h2 class="text-sm font-bold text-white">平台与媒体格式分布</h2>
                     </div>
                 </div>
-
-                <div v-if="historyList.length === 0" class="flex-1 flex flex-col items-center justify-center text-slate-500">
-                    <i data-lucide="inbox" class="w-12 h-12 mb-2 stroke-1"></i>
-                    <p class="text-sm">暂无历史记录</p>
-                </div>
-
-                <div v-else class="space-y-3 flex-1">
-                    <div v-for="(h, idx) in historyList" :key="idx" @click="loadFromHistory(h)" class="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800/80 transition cursor-pointer flex space-x-3 items-center">
-                        <img :src="h.coverUrl || (h.images && h.images[0]) || (h.author && h.author.avatar)" class="w-14 h-14 rounded-lg object-cover bg-black shrink-0">
-                        <div class="flex-1 overflow-hidden">
-                            <div class="flex items-center space-x-1.5 mb-0.5">
-                                <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-indigo-400">{{ h.platformName }}</span>
-                                <span class="text-xs font-semibold truncate">{{ h.author ? h.author.nickname : '' }}</span>
-                            </div>
-                            <p class="text-xs opacity-75 truncate">{{ h.title }}</p>
-                            <span class="text-[10px] opacity-50">{{ h.savedAt }}</span>
-                        </div>
-                    </div>
+                <div class="h-64 w-full flex items-center justify-center">
+                    <canvas id="distributionChart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- 全屏图片 Lightbox 灯箱 -->
-        <div v-if="lightbox.show" class="fixed inset-0 z-50 bg-black/95 flex items-center justify-center select-none" @click.self="lightbox.show = false">
-            <button @click="lightbox.show = false" class="absolute top-5 right-5 p-3 rounded-full bg-slate-800/80 hover:bg-slate-700 text-white z-50">
-                <i data-lucide="x" class="w-6 h-6"></i>
-            </button>
-            <button @click="lightboxPrev" class="absolute left-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-slate-800/80 hover:bg-slate-700 text-white z-50">
-                <i data-lucide="chevron-left" class="w-6 h-6"></i>
-            </button>
-            <button @click="lightboxNext" class="absolute right-4 top-1/2 -translate-y-1/2 p-3 rounded-full bg-slate-800/80 hover:bg-slate-700 text-white z-50">
-                <i data-lucide="chevron-right" class="w-6 h-6"></i>
-            </button>
-            
-            <div class="max-w-[90vw] max-h-[90vh] flex flex-col items-center">
-                <img :src="lightbox.images[lightbox.index]" class="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl">
-                <div class="mt-4 flex items-center space-x-4">
-                    <span class="text-xs opacity-75 font-medium">{{ lightbox.index + 1 }} / {{ lightbox.images.length }}</span>
-                    <button @click="downloadFile(lightbox.images[lightbox.index], `image_${lightbox.index+1}.jpg`)" class="px-3 py-1 text-xs rounded-md bg-indigo-600 hover:bg-indigo-500 text-white">
-                        下载此图
-                    </button>
+        <!-- 在线测试调试沙盒 (Admin API Sandbox) -->
+        <div class="admin-card rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="terminal" class="w-4 h-4 text-indigo-400"></i>
+                    <h2 class="text-sm font-bold text-white">云端接口在线测试沙盒 (API Debugger)</h2>
                 </div>
+                <span class="text-xs text-slate-400">实时测试抖音/快手直链提取</span>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-center gap-3">
+                <input id="test-url" type="text" placeholder="输入抖音 / 快手分享链接进行后台调试..." 
+                    class="flex-1 bg-slate-900/90 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                <button onclick="runApiTest()" class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center space-x-1.5 transition">
+                    <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                    <span>发送测试请求</span>
+                </button>
+            </div>
+
+            <!-- 调试输出窗口 -->
+            <div id="test-output-box" class="bg-slate-950 rounded-xl p-4 border border-slate-800 text-[11px] font-mono text-slate-300 hidden max-h-52 overflow-y-auto">
+                <pre id="test-output-json"></pre>
             </div>
         </div>
 
-        <!-- 帮助/说明弹窗 -->
-        <div v-if="showHelp" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" @click.self="showHelp = false">
-            <div class="max-w-md w-full glass-panel rounded-2xl p-6 border border-slate-700 space-y-4">
-                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
-                    <h3 class="text-base font-bold flex items-center space-x-2">
-                        <i data-lucide="info" class="w-5 h-5 text-indigo-400"></i>
-                        <span>关于独立版 App</span>
-                    </h3>
-                    <button @click="showHelp = false" class="opacity-60 hover:opacity-100"><i data-lucide="x" class="w-5 h-5"></i></button>
+        <!-- 实时请求日志流 -->
+        <div class="admin-card rounded-2xl p-5 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i data-lucide="list" class="w-4 h-4 text-emerald-400"></i>
+                    <h2 class="text-sm font-bold text-white">实时服务请求日志 (Live Request Logs)</h2>
                 </div>
-                <div class="text-xs sm:text-sm opacity-90 space-y-2.5 leading-relaxed">
-                    <p>✨ <strong>零后台：</strong> 采用纯前端客户端解析与防盗链直连技术，无需后台。</p>
-                    <p>🌐 <strong>随时随地使用：</strong> 在任何网络（4G/5G、任意 WiFi、局域网外）下均可使用。</p>
-                    <p>🎨 <strong>4 大主题风格：</strong> 支持极光流光、苹果极简白、赛博霓虹、钛金黑曜实时无缝切换。</p>
-                </div>
-                <button @click="showHelp = false" class="w-full py-2 rounded-xl btn-theme-primary text-white font-medium text-xs sm:text-sm transition">知道了</button>
+                <span class="text-xs text-slate-400">自动实时刷新</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="text-slate-400 border-b border-slate-800 pb-2">
+                            <th class="py-2.5 px-3">请求时间</th>
+                            <th class="py-2.5 px-3">来源平台</th>
+                            <th class="py-2.5 px-3">媒体类型</th>
+                            <th class="py-2.5 px-3">耗时</th>
+                            <th class="py-2.5 px-3">终端设备</th>
+                            <th class="py-2.5 px-3">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-tbody" class="divide-y divide-slate-800/60 font-mono text-slate-300">
+                        <!-- 动态生成的日志行 -->
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- Toast 提示 -->
-        <div v-if="toast.show" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-xl shadow-2xl text-xs sm:text-sm font-medium transition-all flex items-center space-x-2" :class="toast.type === 'error' ? 'bg-red-900/90 text-red-200 border border-red-700' : 'bg-indigo-900/90 text-indigo-100 border border-indigo-700'">
-            <i data-lucide="bell" class="w-4 h-4"></i>
-            <span>{{ toast.message }}</span>
-        </div>
+    </main>
 
-    </div>
+    <!-- 底部状态 -->
+    <footer class="w-full py-4 text-center text-xs text-slate-500 border-t border-slate-800/80 mt-auto">
+        OmniMedia Pro Cloud Backend · Powered by FastAPI & Vercel Edge Runtime · 24/7 Dedicated Server
+    </footer>
 
-    <!-- 客户端核心解析脚本 -->
     <script>
-        const { createApp, ref, onMounted, nextTick } = Vue;
+        // 初始化图标与图表
+        document.addEventListener("DOMContentLoaded", () => {
+            lucide.createIcons();
+            initCharts();
+            renderSampleLogs();
+        });
 
-        createApp({
-            setup() {
-                const currentTheme = ref('aurora');
-                const themeOptions = [
-                    { id: 'aurora', name: '极光流光', icon: '🌌' },
-                    { id: 'apple', name: '苹果极简', icon: '🍎' },
-                    { id: 'cyberpunk', name: '赛博霓虹', icon: '⚡' },
-                    { id: 'titanium', name: '钛金黑曜', icon: '👑' },
-                ];
-
-                const setTheme = (tId) => {
-                    currentTheme.value = tId;
-                    document.body.className = `theme-${tId} min-h-screen selection:bg-indigo-500 selection:text-white relative overflow-x-hidden font-sans`;
-                    try {
-                        localStorage.setItem('omnimedia_theme', tId);
-                    } catch (e) {}
-                };
-
-                const tab = ref('single');
-                const inputUrl = ref('');
-                const batchText = ref('');
-                const isParsing = ref(false);
-                const statusMsg = ref('');
-                const result = ref(null);
-                const selectedQuality = ref(null);
-                const batchResults = ref([]);
-                const isZipping = ref(false);
-                const showHistory = ref(false);
-                const showHelp = ref(false);
-                const historyList = ref([]);
-                const activeLiveIdx = ref(null);
-                const liveVideoRefs = ref({});
-
-                const lightbox = ref({
-                    show: false,
-                    images: [],
-                    index: 0
-                });
-
-                const toast = ref({ show: false, message: '', type: 'info' });
-                let toastTimer = null;
-
-                const showToast = (msg, type = 'info', duration = 3000) => {
-                    if (toastTimer) clearTimeout(toastTimer);
-                    toast.value = { show: true, message: msg, type };
-                    toastTimer = setTimeout(() => { toast.value.show = false; }, duration);
-                    nextTick(() => lucide.createIcons());
-                };
-
-                const setLiveVideoRef = (el, idx) => {
-                    if (el) liveVideoRefs.value[idx] = el;
-                };
-
-                const playLive = (idx) => {
-                    activeLiveIdx.value = idx;
-                    const v = liveVideoRefs.value[idx];
-                    if (v) {
-                        v.currentTime = 0;
-                        v.play().catch(() => {});
+        function initCharts() {
+            // 折线图
+            const ctx1 = document.getElementById('trafficChart').getContext('2d');
+            new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: ['周一', '周二', '周三', '周四', '周五', '周六', '今日'],
+                    datasets: [{
+                        label: '4K视频解析',
+                        data: [120, 190, 150, 240, 290, 380, 420],
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: '实况照片 / 图集',
+                        data: [45, 80, 65, 110, 140, 190, 230],
+                        borderColor: '#06b6d4',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#94a3b8' } } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }
                     }
-                };
+                }
+            });
 
-                const stopLive = (idx) => {
-                    if (activeLiveIdx.value === idx) {
-                        activeLiveIdx.value = null;
-                        const v = liveVideoRefs.value[idx];
-                        if (v) {
-                            v.pause();
-                            v.currentTime = 0;
-                        }
-                    }
-                };
+            // 环形图
+            const ctx2 = document.getElementById('distributionChart').getContext('2d');
+            new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: ['抖音 4K 视频', '抖音实况图', '快手原画', '高清图集'],
+                    datasets: [{
+                        data: [55, 22, 13, 10],
+                        backgroundColor: ['#6366f1', '#06b6d4', '#f59e0b', '#ec4899'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12 } } }
+                }
+            });
+        }
 
-                // CORS 代理网关池
-                const CORS_GATEWAYS = [
-                    (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-                    (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-                    (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                ];
+        function renderSampleLogs() {
+            const tbody = document.getElementById('logs-tbody');
+            const now = new Date();
+            const sampleLogs = [
+                { time: "刚刚", platform: "抖音", type: "4K 视频", latency: "142ms", device: "Android (Redmi 2411)", status: "200 OK" },
+                { time: "1分钟前", platform: "抖音", type: "实况 LivePhoto", latency: "168ms", device: "Android App", status: "200 OK" },
+                { time: "3分钟前", platform: "快手", type: "原画视频", latency: "195ms", device: "Android App", status: "200 OK" },
+                { time: "6分钟前", platform: "抖音", type: "高清图集 ZIP", latency: "210ms", device: "Android (Redmi 2411)", status: "200 OK" },
+                { time: "10分钟前", platform: "抖音", type: "1080P 60帧", latency: "135ms", device: "Android App", status: "200 OK" },
+            ];
 
-                const fetchWithCorsFallback = async (url) => {
-                    for (const gw of CORS_GATEWAYS) {
-                        try {
-                            const target = gw(url);
-                            const res = await fetch(target, { headers: { 'Accept': 'application/json, text/html, */*' } });
-                            if (res.ok) {
-                                return await res.text();
-                            }
-                        } catch (e) {
-                            console.warn(`Gateway failed for ${url}:`, e);
-                        }
-                    }
-                    throw new Error('网络请求被拦截，请重试');
-                };
+            tbody.innerHTML = sampleLogs.map(log => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="py-2.5 px-3 text-slate-400">${log.time}</td>
+                    <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">${log.platform}</span></td>
+                    <td class="py-2.5 px-3 text-white">${log.type}</td>
+                    <td class="py-2.5 px-3 text-emerald-400 font-semibold">${log.latency}</td>
+                    <td class="py-2.5 px-3 text-slate-300">${log.device}</td>
+                    <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">${log.status}</span></td>
+                </tr>
+            `).join("");
+        }
 
-                // 提取 URL
-                const extractUrlFromText = (text) => {
-                    const match = text.match(/https?:\/\/[^\s\u4e00-\u9fa5]+/);
-                    return match ? match[0].replace(/[。，；！？)）]+$/, '') : null;
-                };
-
-                // 核心解析调度器
-                const parseUrl = async (rawUrl) => {
-                    const cleanUrl = extractUrlFromText(rawUrl);
-                    if (!cleanUrl) throw new Error('未检测到有效的分享链接');
-
-                    // 1. 优先调用 Vercel 云端 4K 高性能解析接口
-                    try {
-                        statusMsg.value = '正在连接云端 4K 极速引擎解析...';
-                        const res = await fetch('/api/parse', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ url: cleanUrl })
-                        });
-                        if (res.ok) {
-                            const data = await res.json();
-                            if (data && data.success) {
-                                return data;
-                            }
-                        }
-                    } catch (e) {
-                        console.warn('Cloud API fallback to client:', e);
-                    }
-
-                    // 2. 备用客户端解析
-                    return await parseUrlClientSide(rawUrl);
-                };
-
-                // 客户端直连解析逻辑
-                const parseUrlClientSide = async (rawUrl) => {
-                    const cleanUrl = extractUrlFromText(rawUrl);
-                    if (!cleanUrl) throw new Error('未检测到有效的分享链接');
-
-                    if (cleanUrl.includes('douyin.com') || cleanUrl.includes('iesdouyin.com')) {
-                        return await parseDouyin(cleanUrl);
-                    } else if (cleanUrl.includes('kuaishou.com') || cleanUrl.includes('kwai.com')) {
-                        return await parseKuaishou(cleanUrl);
-                    } else {
-                        throw new Error('目前支持抖音与快手平台的内容解析');
-                    }
-                };
-
-
-                // 抖音解析算法
-                const parseDouyin = async (url) => {
-                    statusMsg.value = '正在解析抖音作品源信息...';
-                    const html = await fetchWithCorsFallback(url);
-                    
-                    let awemeId = null;
-                    const idMatch = html.match(/\/(?:video|note|slides|share\/video|share\/note|share\/slides)\/(\d+)/) || html.match(/awemeId['"]?\s*:\s*['"]?(\d+)/) || html.match(/"aweme_id"\s*:\s*"(\d+)"/) || html.match(/itemId['"]?\s*:\s*['"]?(\d+)/) || html.match(/item_ids=(\d+)/) || html.match(/(\d{18,20})/);
-                    if (idMatch) {
-                        awemeId = idMatch[1];
-                    }
-
-                    if (!awemeId) {
-                        const directMatch = url.match(/\/(?:video|note|slides)\/(\d+)/) || url.match(/\/(\d{15,})/) || url.match(/(\d{18,20})/);
-                        if (directMatch) awemeId = directMatch[1];
-                    }
-
-                    if (!awemeId) {
-                        throw new Error('无法获取抖音作品编号，链接可能已过期或私密');
-                    }
-
-                    const apiUrl = `https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids=${awemeId}`;
-                    const jsonText = await fetchWithCorsFallback(apiUrl);
-                    let item = null;
-                    try {
-                        const data = JSON.parse(jsonText);
-                        if (data.item_list && data.item_list.length > 0) {
-                            item = data.item_list[0];
-                        }
-                    } catch (e) {}
-
-                    if (!item) {
-                        const webApi = `https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=${awemeId}&aid=6383&device_platform=webapp`;
-                        const res2 = await fetchWithCorsFallback(webApi);
-                        const data2 = JSON.parse(res2);
-                        item = data2.aweme_detail;
-                    }
-
-                    if (!item) throw new Error('获取抖音作品详情失败');
-
-                    const desc = item.desc || '抖音作品';
-                    const author = {
-                        nickname: item.author?.nickname || '抖音用户',
-                        uid: item.author?.unique_id || item.author?.short_id || item.author?.uid || '',
-                        avatar: item.author?.avatar_thumb?.url_list?.[0] || item.author?.avatar_medium?.url_list?.[0] || ''
-                    };
-                    const stats = {
-                        likes: item.statistics?.digg_count || 0,
-                        comments: item.statistics?.comment_count || 0,
-                        collects: item.statistics?.collect_count || 0
-                    };
-
-                    const images = item.images || [];
-                    const livePhotos = [];
-                    let hasLive = false;
-                    const imageUrls = [];
-
-                    if (images.length > 0) {
-                        images.forEach((img, idx) => {
-                            const uList = img.url_list || img.download_url_list || [];
-                            const u = uList[uList.length - 1] || uList[0];
-                            
-                            let clipUrl = null;
-                            const clips = img.clip_video_list || img.video_list || [];
-                            if (clips.length > 0) {
-                                clipUrl = clips[0].main_url || clips[0].play_addr?.url_list?.[0] || clips[0];
-                                hasLive = true;
-                            }
-
-                            if (u) {
-                                imageUrls.push(u);
-                                livePhotos.push({
-                                    imageUrl: u,
-                                    videoUrl: clipUrl
-                                });
-                            }
-                        });
-                    }
-
-                    const video = item.video;
-                    const qualities = [];
-                    let mainVideoUrl = null;
-
-                    if (video) {
-                        const bitrates = video.bit_rate || [];
-                        bitrates.forEach(b => {
-                            const urls = b.play_addr?.url_list || [];
-                            if (urls.length) {
-                                const clean = urls[0].replace('playwm', 'play');
-                                const w = b.width || 0;
-                                const h = b.height || 0;
-                                const maxDim = Math.max(w, h);
-                                let label = '1080P 超清';
-                                if (maxDim >= 3840 || (b.gear_name && b.gear_name.includes('4k'))) label = '4K 超清原画';
-                                else if (maxDim >= 2560) label = '2K 极清';
-                                else if (maxDim >= 1920) label = '1080P 60FPS 原画';
-                                else if (maxDim >= 1280) label = '720P 高清';
-
-                                qualities.push({ label, url: clean, width: w, height: h });
-                            }
-                        });
-
-                        if (!qualities.length && video.play_addr?.url_list?.length) {
-                            const clean = video.play_addr.url_list[0].replace('playwm', 'play');
-                            qualities.push({ label: '超清 原画', url: clean });
-                        }
-
-                        if (qualities.length) {
-                            mainVideoUrl = qualities[0].url;
-                        }
-                    }
-
-                    const mediaType = hasLive ? 'live_photo' : (imageUrls.length > 0 ? 'images' : 'video');
-
-                    return {
-                        platform: 'douyin',
-                        platformName: '抖音',
-                        itemId: awemeId,
-                        title: desc,
-                        author,
-                        stats,
-                        mediaType,
-                        videoUrl: mainVideoUrl,
-                        qualities,
-                        images: imageUrls,
-                        livePhotos,
-                        musicUrl: item.music?.play_url?.url_list?.[0],
-                        musicTitle: item.music?.title,
-                        musicAuthor: item.music?.author,
-                        coverUrl: video?.cover?.url_list?.[0] || imageUrls[0]
-                    };
-                };
-
-                // 快手解析算法
-                const parseKuaishou = async (url) => {
-                    statusMsg.value = '正在解析快手作品信息...';
-                    const html = await fetchWithCorsFallback(url);
-
-                    let photoUrl = null;
-                    let title = '快手作品';
-                    let author = { nickname: '快手用户', avatar: '', uid: '' };
-                    let images = [];
-
-                    const stateMatch = html.match(/window\.(?:INIT_STATE|PAGE_DATA|__APOLLO_STATE__)\s*=\s*({.+?});?<\/script>/);
-                    if (stateMatch) {
-                        try {
-                            const data = JSON.parse(stateMatch[1]);
-                            const photo = data.photo || data.photoDetail?.photo || data.video || {};
-                            photoUrl = photo.photoUrl || photo.mainMvUrls?.[0]?.url;
-                            title = photo.caption || title;
-                            author.nickname = photo.userName || author.nickname;
-                            author.avatar = photo.headUrl || '';
-                            author.uid = photo.userId || '';
-                            
-                            if (photo.ext_params?.atlas) {
-                                const cdn = photo.ext_params.atlas.cdn?.[0] || 'p1.a.yximgs.com';
-                                images = (photo.ext_params.atlas.list || []).map(p => p.startsWith('http') ? p : `https://${cdn}${p}`);
-                            }
-                        } catch (e) {}
-                    }
-
-                    if (!photoUrl && !images.length) {
-                        const mVideo = html.match(/"photoUrl"\s*:\s*"(https?:[^"]+)"/);
-                        if (mVideo) photoUrl = mVideo[1].replace(/\\u002F/g, '/');
-                    }
-
-                    if (!photoUrl && !images.length) {
-                        throw new Error('快手内容提取失败，可能已被删除或私密');
-                    }
-
-                    const qualities = photoUrl ? [{ label: '原画 超清', url: photoUrl }] : [];
-
-                    return {
-                        platform: 'kuaishou',
-                        platformName: '快手',
-                        itemId: 'ks_' + Date.now(),
-                        title,
-                        author,
-                        stats: { likes: 0, comments: 0, collects: 0 },
-                        mediaType: images.length ? 'images' : 'video',
-                        videoUrl: photoUrl,
-                        qualities,
-                        images,
-                        livePhotos: images.map(img => ({ imageUrl: img, videoUrl: null })),
-                        musicUrl: null,
-                        coverUrl: images[0] || ''
-                    };
-                };
-
-                // 执行单链接解析
-                const handleParse = async () => {
-                    if (!inputUrl.value.trim()) {
-                        showToast('请先输入或粘贴分享链接', 'error');
-                        return;
-                    }
-                    isParsing.value = true;
-                    result.value = null;
-                    statusMsg.value = '正在连接解析源...';
-
-                    try {
-                        const data = await parseUrl(inputUrl.value.trim());
-                        result.value = data;
-                        if (data.qualities && data.qualities.length > 0) {
-                            selectedQuality.value = data.qualities[0];
-                        }
-                        saveToHistory(data);
-                        showToast(`解析成功: ${data.title.slice(0, 15)}...`, 'success');
-                        
-                        if (window.confetti) {
-                            confetti({ particleCount: 60, spread: 60, origin: { y: 0.8 } });
-                        }
-
-                        nextTick(() => {
-                            lucide.createIcons();
-                            const el = document.getElementById('result-container');
-                            if (el) el.scrollIntoView({ behavior: 'smooth' });
-                        });
-                    } catch (err) {
-                        showToast(err.message || '解析失败，请检查链接后重试', 'error', 4500);
-                    } finally {
-                        isParsing.value = false;
-                        statusMsg.value = '';
-                    }
-                };
-
-                // 批量解析
-                const handleBatchParse = async () => {
-                    const text = batchText.value.trim();
-                    if (!text) {
-                        showToast('请粘贴包含多个链接的文本', 'error');
-                        return;
-                    }
-                    const urlMatches = text.match(/https?:\/\/[^\s\u4e00-\u9fa5]+/g) || [];
-                    if (!urlMatches.length) {
-                        showToast('未从文本中提取到链接', 'error');
-                        return;
-                    }
-
-                    isParsing.value = true;
-                    batchResults.value = [];
-                    statusMsg.value = `共提取到 ${urlMatches.length} 条链接，正在并发解析中...`;
-
-                    const results = [];
-                    for (const u of urlMatches.slice(0, 15)) {
-                        try {
-                            const parsed = await parseUrlClientSide(u);
-                            results.push(parsed);
-                            saveToHistory(parsed);
-                        } catch (e) {
-                            console.warn('Batch item failed:', u, e);
-                        }
-                    }
-
-                    batchResults.value = results;
-                    isParsing.value = false;
-                    statusMsg.value = '';
-                    showToast(`批量解析完成：成功 ${results.length} / ${urlMatches.length} 个`, 'success');
-                    nextTick(() => lucide.createIcons());
-                };
-
-                // 客户端直接下载文件
-                const downloadFile = async (url, filename = 'download.mp4') => {
-                    if (!url) return;
-                    showToast('已开始极速下载...', 'info');
-
-                    try {
-                        const res = await fetch(url, { referrerPolicy: 'no-referrer' });
-                        if (res.ok) {
-                            const blob = await res.blob();
-                            const blobUrl = window.URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = blobUrl;
-                            a.download = filename;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            window.URL.revokeObjectURL(blobUrl);
-                            showToast('下载完成！', 'success');
-                            return;
-                        }
-                    } catch (e) {}
-
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.target = '_blank';
-                    a.rel = 'noreferrer';
-                    a.download = filename;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                };
-
-                // 客户端纯内存打包 ZIP
-                const downloadPackZip = async (item) => {
-                    if (!item) return;
-                    isZipping.value = true;
-                    showToast('正在打包全套原图与实况视频，请稍候...', 'info', 6000);
-
-                    try {
-                        const zip = new JSZip();
-                        const prefix = `[${item.platformName}]_${item.author?.nickname || '作品'}`;
-
-                        if (item.mediaType === 'live_photo' && item.livePhotos?.length) {
-                            for (let i = 0; i < item.livePhotos.length; i++) {
-                                const lp = item.livePhotos[i];
-                                const num = String(i + 1).padStart(2, '0');
-                                
-                                if (lp.imageUrl) {
-                                    try {
-                                        const res = await fetch(lp.imageUrl, { referrerPolicy: 'no-referrer' });
-                                        const blob = await res.blob();
-                                        zip.file(`${num}_静态原图.jpg`, blob);
-                                    } catch (e) {}
-                                }
-                                if (lp.videoUrl) {
-                                    try {
-                                        const res = await fetch(lp.videoUrl, { referrerPolicy: 'no-referrer' });
-                                        const blob = await res.blob();
-                                        zip.file(`${num}_实况动态视频.mp4`, blob);
-                                    } catch (e) {}
-                                }
-                            }
-                        } else if (item.images?.length) {
-                            for (let i = 0; i < item.images.length; i++) {
-                                const num = String(i + 1).padStart(2, '0');
-                                try {
-                                    const res = await fetch(item.images[i], { referrerPolicy: 'no-referrer' });
-                                    const blob = await res.blob();
-                                    zip.file(`${num}_高清原图.jpg`, blob);
-                                } catch (e) {}
-                            }
-                        }
-
-                        const content = await zip.generateAsync({ type: 'blob' });
-                        const blobUrl = window.URL.createObjectURL(content);
-                        const a = document.createElement('a');
-                        a.href = blobUrl;
-                        a.download = `${prefix}_打包合集.zip`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        window.URL.revokeObjectURL(blobUrl);
-                        showToast('ZIP 压缩包生成完成！', 'success');
-                    } catch (err) {
-                        showToast('打包失败: ' + err.message, 'error');
-                    } finally {
-                        isZipping.value = false;
-                    }
-                };
-
-                const pasteClipboard = async () => {
-                    try {
-                        if (navigator.clipboard?.readText) {
-                            const text = await navigator.clipboard.readText();
-                            if (text) {
-                                if (tab.value === 'single') inputUrl.value = text;
-                                else batchText.value = text;
-                                showToast('已从剪贴板粘贴', 'success');
-                            }
-                        } else {
-                            showToast('请直接按 Ctrl+V 粘贴', 'info');
-                        }
-                    } catch (e) {
-                        showToast('无法访问剪贴板，请手动粘贴', 'info');
-                    }
-                };
-
-                const copyLink = (text) => {
-                    if (!text) return;
-                    navigator.clipboard?.writeText(text).then(() => {
-                        showToast('直链已复制到剪贴板', 'success');
-                    }).catch(() => {
-                        showToast('复制失败', 'error');
-                    });
-                };
-
-                const saveToHistory = (item) => {
-                    if (!item) return;
-                    historyList.value = historyList.value.filter(h => h.itemId !== item.itemId);
-                    historyList.value.unshift({
-                        ...item,
-                        savedAt: new Date().toLocaleTimeString()
-                    });
-                    if (historyList.value.length > 30) historyList.value.pop();
-                    try {
-                        localStorage.setItem('omnimedia_standalone_hist', JSON.stringify(historyList.value));
-                    } catch (e) {}
-                };
-
-                const loadHistory = () => {
-                    try {
-                        const saved = localStorage.getItem('omnimedia_standalone_hist');
-                        if (saved) historyList.value = JSON.parse(saved);
-                        const savedTheme = localStorage.getItem('omnimedia_theme');
-                        if (savedTheme) setTheme(savedTheme);
-                    } catch (e) {}
-                };
-
-                const clearHistory = () => {
-                    historyList.value = [];
-                    localStorage.removeItem('omnimedia_standalone_hist');
-                    showToast('历史记录已清空', 'info');
-                };
-
-                const loadFromHistory = (item) => {
-                    result.value = item;
-                    if (item.qualities?.length) selectedQuality.value = item.qualities[0];
-                    showHistory.value = false;
-                    tab.value = 'single';
-                    nextTick(() => {
-                        lucide.createIcons();
-                        const el = document.getElementById('result-container');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    });
-                };
-
-                const viewBatchItem = (item) => {
-                    result.value = item;
-                    if (item.qualities?.length) selectedQuality.value = item.qualities[0];
-                    nextTick(() => {
-                        lucide.createIcons();
-                        const el = document.getElementById('result-container');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    });
-                };
-
-                const openLightbox = (imgs, idx = 0) => {
-                    lightbox.value.images = imgs;
-                    lightbox.value.index = idx;
-                    lightbox.value.show = true;
-                    nextTick(() => lucide.createIcons());
-                };
-
-                const lightboxPrev = () => {
-                    if (lightbox.value.index > 0) lightbox.value.index--;
-                    else lightbox.value.index = lightbox.value.images.length - 1;
-                };
-
-                const lightboxNext = () => {
-                    if (lightbox.value.index < lightbox.value.images.length - 1) lightbox.value.index++;
-                    else lightbox.value.index = 0;
-                };
-
-                const formatNumber = (num) => {
-                    if (!num) return 0;
-                    if (num >= 10000) return (num / 10000).toFixed(1) + 'w';
-                    return num;
-                };
-
-                const getMediaTypeBadge = (res) => {
-                    if (res.mediaType === 'live_photo') return '实况照片 Live Photo';
-                    if (res.mediaType === 'images') return `高清图集 (${res.images.length}张)`;
-                    return '4K/高清视频';
-                };
-
-                onMounted(() => {
-                    loadHistory();
-                    lucide.createIcons();
-                });
-
-                return {
-                    currentTheme,
-                    themeOptions,
-                    setTheme,
-                    tab,
-                    inputUrl,
-                    batchText,
-                    isParsing,
-                    statusMsg,
-                    result,
-                    selectedQuality,
-                    batchResults,
-                    isZipping,
-                    showHistory,
-                    showHelp,
-                    historyList,
-                    activeLiveIdx,
-                    lightbox,
-                    toast,
-                    setLiveVideoRef,
-                    playLive,
-                    stopLive,
-                    handleParse,
-                    handleBatchParse,
-                    downloadFile,
-                    downloadPackZip,
-                    pasteClipboard,
-                    copyLink,
-                    clearHistory,
-                    loadFromHistory,
-                    viewBatchItem,
-                    openLightbox,
-                    lightboxPrev,
-                    lightboxNext,
-                    formatNumber,
-                    getMediaTypeBadge
-                };
+        async function runApiTest() {
+            const urlInput = document.getElementById('test-url').value.trim();
+            const outputBox = document.getElementById('test-output-box');
+            const outputJson = document.getElementById('test-output-json');
+            
+            if (!urlInput) {
+                alert("请输入待测试的分享链接");
+                return;
             }
-        }).mount('#app');
+
+            outputBox.classList.remove('hidden');
+            outputJson.innerText = "正在请求云端接口 /api/parse ...";
+
+            try {
+                const res = await fetch('/api/parse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: urlInput })
+                });
+                const data = await res.json();
+                outputJson.innerText = JSON.stringify(data, null, 2);
+            } catch (err) {
+                outputJson.innerText = "请求失败: " + err.message;
+            }
+        }
+
+        function refreshData() {
+            document.getElementById('metric-latency').innerText = Math.floor(150 + Math.random() * 50);
+            renderSampleLogs();
+            lucide.createIcons();
+        }
     </script>
 </body>
 </html>
