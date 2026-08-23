@@ -578,6 +578,9 @@ async def api_gallery_delete_all(request: Request):
 from app.admin_view import ADMIN_DASHBOARD_HTML
 
 @app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin/", response_class=HTMLResponse)
+@app.get("/admin/index.html", response_class=HTMLResponse)
+@app.get("/api/admin", response_class=HTMLResponse)
 async def admin_dashboard():
     """Render the AI Gallery & Preference Analytics Admin Dashboard."""
     return HTMLResponse(content=ADMIN_DASHBOARD_HTML)
