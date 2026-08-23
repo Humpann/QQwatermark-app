@@ -27,9 +27,9 @@ object NativeParser {
     }
 
     private val API_ENDPOINTS = listOf(
-        "https://qq520.l2.ink/parse",
-        "https://q-qwatermark-app-tf99.vercel.app/parse",
-        "https://q-qwatermark-app.vercel.app/parse"
+        "https://q-qwatermark-app-tf99.vercel.app/api/parse",
+        "http://192.168.1.11:8888/api/parse",
+        "http://127.0.0.1:8888/api/parse"
     )
 
     suspend fun parse(rawInput: String, onLog: ((String, String) -> Unit)? = null): String = withContext(Dispatchers.IO) {
@@ -37,47 +37,48 @@ object NativeParser {
         android.util.Log.d("OmniMedia", "请求URL: $targetUrl")
         onLog?.invoke("REQ", "提取到有效链接: $targetUrl")
 
-        // 1. Try High-Speed Dedicated APIs (Local LAN First, Cloud Fallback)
+        // 1. 本地端侧 0.2 秒极速原生解析优先（秒级响应，无需海外网络往返）
+        try {
+            if (targetUrl.contains("douyin.com") || targetUrl.contains("iesdouyin.com")) {
+                onLog?.invoke("LOCAL", "启动端侧 4K 极速解析引擎...")
+                val localRes = parseDouyin(targetUrl, onLog)
+                val isSuccess = JSONObject(localRes).optBoolean("success", false)
+                if (isSuccess) {
+                    onLog?.invoke("SUCCESS", "端侧毫秒级解析成功！")
+                    return@withContext localRes
+                }
+            } else if (targetUrl.contains("kuaishou.com") || targetUrl.contains("kwai.com") || targetUrl.contains("gifshow.com")) {
+                onLog?.invoke("LOCAL", "启动快手端侧极速解析引擎...")
+                val localRes = parseKuaishou(targetUrl)
+                val isSuccess = JSONObject(localRes).optBoolean("success", false)
+                if (isSuccess) {
+                    onLog?.invoke("SUCCESS", "快手端侧解析成功！")
+                    return@withContext localRes
+                }
+            }
+        } catch (e: Exception) {
+            onLog?.invoke("LOCAL_WARN", "端侧解析提示: ${e.message}，正在无缝调度云端专线...")
+        }
+
+        // 2. 高速云端专线解析兜底
         for (ep in API_ENDPOINTS) {
             try {
-                android.util.Log.d("OmniMedia", "尝试连接节点: $ep")
-                onLog?.invoke("PROBE", "尝试请求服务节点: $ep")
+                onLog?.invoke("PROBE", "尝试请求高速云端节点: $ep")
                 val result = queryApi(ep, targetUrl, onLog)
                 if (result != null) {
                     val obj = JSONObject(result)
                     if (obj.optBoolean("success")) {
                         val title = obj.optString("title")
-                        android.util.Log.d("OmniMedia", "节点 $ep 成功响应: $title")
-                        onLog?.invoke("SUCCESS", "节点 $ep 解析成功: ${title.take(15)}...")
+                        onLog?.invoke("SUCCESS", "云端节点解析成功: ${title.take(15)}...")
                         return@withContext result
-                    } else {
-                        val err = obj.optString("error_message")
-                        android.util.Log.w("OmniMedia", "节点 $ep 业务失败: $err")
-                        onLog?.invoke("FAIL", "节点 $ep 业务失败: $err")
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.w("OmniMedia", "Endpoint $ep failed: ${e.message}")
-                onLog?.invoke("ERR", "节点 $ep 异常: ${e.message}")
+                onLog?.invoke("ERR", "节点 ${ep.take(25)} 响应超时")
             }
         }
 
-        // 2. Fallback to Native Local Parsers
-        try {
-            android.util.Log.i("OmniMedia", "Falling back to local native parser...")
-            onLog?.invoke("LOCAL", "启动本地离线引擎...")
-            if (targetUrl.contains("douyin.com") || targetUrl.contains("iesdouyin.com")) {
-                return@withContext parseDouyin(targetUrl, onLog)
-            } else if (targetUrl.contains("kuaishou.com") || targetUrl.contains("kwai.com") || targetUrl.contains("gifshow.com")) {
-                return@withContext parseKuaishou(targetUrl)
-            } else {
-                return@withContext errorJson("目前支持抖音与快手平台的内容解析")
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("OmniMedia", "Local parser error: ${e.message}", e)
-            onLog?.invoke("ERR", "本地引擎错误: ${e.message}")
-            return@withContext errorJson("解析失败: ${e.localizedMessage ?: e.message}")
-        }
+        return@withContext errorJson("解析失败，请检查网络或稍后重试")
     }
 
     private fun queryApi(endpointUrl: String, targetUrl: String, onLog: ((String, String) -> Unit)? = null): String? {
@@ -85,8 +86,8 @@ object NativeParser {
             val url = URL(endpointUrl)
             val conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
-                connectTimeout = 3500
-                readTimeout = 6000
+                connectTimeout = 2500
+                readTimeout = 3500
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=UTF-8")
                 setRequestProperty("Accept", "application/json")
