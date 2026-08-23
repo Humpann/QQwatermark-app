@@ -336,29 +336,53 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                     </div>
                 </div>
 
-                <!-- 右侧：手机端动态岛精美效果实时预览 -->
+                <!-- 右侧：手机端翻页弹窗精美效果实时预览 -->
                 <div class="lg:col-span-5 glass-card rounded-3xl p-6 shadow-xl flex flex-col items-center justify-center text-center space-y-4">
-                    <span class="text-xs font-bold text-slate-400">📱 客户端「动态岛流体磨砂」实时视觉预览</span>
+                    <span class="text-xs font-bold text-slate-400">📱 客户端「流体磨砂翻页弹窗」实时视觉预览</span>
                     
                     <div class="w-full max-w-xs bg-slate-950 rounded-3xl p-4 border border-slate-800 shadow-2xl space-y-3 text-left">
-                        <!-- 动态岛弹窗模拟 -->
-                        <div id="preview-capsule" class="w-full bg-slate-900/95 border border-amber-400/40 rounded-2xl p-3.5 shadow-xl space-y-2">
-                            <div class="flex items-center space-x-2.5">
-                                <div id="preview-icon-box" class="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
-                                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                        <!-- 翻页广播弹窗模拟 -->
+                        <div id="preview-capsule" class="w-full bg-slate-900/95 border border-white/20 rounded-[28px] p-4 shadow-2xl space-y-3">
+                            <div class="flex items-center justify-between border-b border-white/10 pb-2">
+                                <div class="flex items-center space-x-2">
+                                    <div id="preview-icon-box" class="w-7 h-7 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
+                                        <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                                    </div>
+                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-black bg-indigo-500/30 text-indigo-300">官方公告</span>
                                 </div>
-                                <div class="min-w-0 flex-1">
-                                    <h4 id="preview-title" class="text-xs font-black text-white truncate">🎉 尊享版 5.0 旗舰升级</h4>
-                                    <span class="text-[9px] font-bold text-amber-400">管理员全局广播</span>
+                                <span class="text-[10px] font-bold text-slate-400">1 / 3</span>
+                            </div>
+                            <div class="space-y-1">
+                                <h4 id="preview-title" class="text-xs font-black text-white truncate">🎉 尊享版 5.0 旗舰升级</h4>
+                                <p id="preview-content" class="text-[11px] text-slate-300 leading-relaxed max-h-20 overflow-hidden">
+                                    全新 5.0 智能差量相册与无水印引擎已就绪！体验毫秒级原画提取与实时云端协同。
+                                </p>
+                            </div>
+                            <!-- 翻页控制 -->
+                            <div class="flex items-center justify-between pt-1 text-[10px]">
+                                <span class="px-2 py-1 rounded-lg bg-white/10 text-slate-400 font-bold">上一页</span>
+                                <div class="flex space-x-1">
+                                    <div class="w-2 h-2 rounded-full bg-indigo-400"></div>
+                                    <div class="w-1.5 h-1.5 rounded-full bg-white/30"></div>
+                                    <div class="w-1.5 h-1.5 rounded-full bg-white/30"></div>
+                                </div>
+                                <span class="px-2 py-1 rounded-lg bg-white/10 text-slate-300 font-bold">下一页</span>
+                            </div>
+                            <!-- 互动按钮 -->
+                            <div class="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
+                                <div class="py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-black text-[10px] flex items-center justify-center space-x-1">
+                                    <span>💐 献花</span>
+                                    <span class="text-[9px] text-rose-200">128</span>
+                                </div>
+                                <div class="py-1.5 rounded-xl bg-white/10 text-amber-200 font-black text-[10px] flex items-center justify-center space-x-1">
+                                    <span>💩 泼粪</span>
+                                    <span class="text-[9px] text-amber-300/80">2</span>
                                 </div>
                             </div>
-                            <p id="preview-content" class="text-[11px] text-slate-300 leading-relaxed">
-                                全新 5.0 智能差量相册与无水印引擎已就绪！体验毫秒级原画提取与实时云端协同。
-                            </p>
                         </div>
                     </div>
 
-                    <p class="text-[11px] text-slate-500">客户端收到后将伴随 iOS 触控微震动与顶部柔性滑入特效</p>
+                    <p class="text-[11px] text-slate-500">客户端弹出后支持左右翻页，点击「泼粪」将弹出“我伤心了 💔”提示</p>
                 </div>
 
             </div>

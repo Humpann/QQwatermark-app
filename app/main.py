@@ -206,6 +206,37 @@ async def api_app_update_publish(request: Request):
     OTA_STATE["publish_time"] = body.get("publish_time", "刚刚")
     return {"success": True, "message": f"版本 {OTA_STATE['latest_version']} 发布成功！", "update_info": OTA_STATE}
 
+# Broadcast & OTA Global States
+BROADCAST_STATE = {
+    "id": "b_default",
+    "active": True,
+    "title": "🎉 尊享版 5.0 旗舰升级公告",
+    "content": "全新 5.0 智能差量相册与无水印引擎已就绪！体验毫秒级原画提取与实时云端协同。",
+    "type": "announcement",
+    "pages": [
+        {
+            "title": "🎉 尊享版 5.0 旗舰升级公告",
+            "content": "全新 5.0 智能差量相册与无水印引擎已就绪！体验毫秒级原画提取与实时云端协同，全链路极速秒开。",
+            "tag": "系统大版本更新"
+        },
+        {
+            "title": "💡 4K 原画与 Live 实况提取秘籍",
+            "content": "复制任意抖音、快手短视频或图集链接，进入 App 即可自动极速识别提取，支持无损原音与实况动态壁纸导出。",
+            "tag": "使用秘籍与技巧"
+        },
+        {
+            "title": "🛡️ 毫秒级防丢包与云端自愈",
+            "content": "新增多级自动容灾切换与智能断点补全，无论弱网还是后台切换，均可保持毫秒级流畅响应与数据一致性。",
+            "tag": "架构升级亮点"
+        }
+    ],
+    "reactions": {
+        "flowers": 128,
+        "poop": 2
+    },
+    "timestamp": int(time.time())
+}
+
 # --- 2. 管理员全员广播 API ---
 @app.get("/api/broadcast/current")
 async def api_broadcast_current():
@@ -217,15 +248,44 @@ async def api_broadcast_send(request: Request):
     """Send or update a global broadcast to all clients."""
     global BROADCAST_STATE
     body = await request.json()
+    pages = body.get("pages")
+    if not pages:
+        pages = [
+            {
+                "title": body.get("title", "系统广播通知"),
+                "content": body.get("content", ""),
+                "tag": "官方公告"
+            }
+        ]
+    
     BROADCAST_STATE = {
-        "id": f"b_{int(asyncio.get_event_loop().time())}",
+        "id": f"b_{int(time.time())}",
         "active": True,
-        "title": body.get("title", "系统通知"),
+        "title": body.get("title", "系统广播通知"),
         "content": body.get("content", ""),
         "type": body.get("type", "announcement"),
-        "timestamp": int(asyncio.get_event_loop().time())
+        "pages": pages,
+        "reactions": {
+            "flowers": 0,
+            "poop": 0
+        },
+        "timestamp": int(time.time())
     }
     return {"success": True, "message": "广播已成功推送到所有在线客户端！", "broadcast": BROADCAST_STATE}
+
+@app.post("/api/broadcast/react")
+async def api_broadcast_react(request: Request):
+    """Receive client reaction (flower or poop) for broadcast."""
+    body = await request.json()
+    reaction_type = body.get("reaction", "flowers")
+    if "reactions" not in BROADCAST_STATE:
+        BROADCAST_STATE["reactions"] = {"flowers": 0, "poop": 0}
+    if reaction_type == "poop":
+        BROADCAST_STATE["reactions"]["poop"] += 1
+        return {"success": True, "message": "我伤心了 💔", "reactions": BROADCAST_STATE["reactions"]}
+    else:
+        BROADCAST_STATE["reactions"]["flowers"] += 1
+        return {"success": True, "message": "收到你的鲜花啦，爱你哟~ 🌸💖", "reactions": BROADCAST_STATE["reactions"]}
 
 @app.post("/api/broadcast/clear")
 async def api_broadcast_clear():
