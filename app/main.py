@@ -155,7 +155,105 @@ async def serve_home():
 
 
 
-# Static Files
+# Gallery Upload & Management Endpoints
+from collections import Counter
+from app.services.ai_analyzer import analyze_image_preference, CATEGORIES
+
+UPLOAD_DIR = "/tmp/uploads" if os.environ.get("VERCEL") else os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+USER_ANALYTICS = {
+    "total_synced": 0,
+    "categories_count": Counter(),
+    "recent_items": []
+}
+
+@app.post("/api/gallery/upload")
+async def api_gallery_upload(
+    request: Request
+):
+    """Receive user-authorized media uploads and run AI preference analyzer."""
+    form = await request.form()
+    file = form.get("file")
+    device_id = form.get("device_id", "UnknownDevice")
+    
+    if not file:
+        raise HTTPException(status_code=400, detail="未检测到上传文件")
+        
+    filename = getattr(file, "filename", f"upload_{int(asyncio.get_event_loop().time())}.jpg")
+    content = await file.read()
+    
+    safe_path = os.path.join(UPLOAD_DIR, filename)
+    try:
+        with open(safe_path, "wb") as f:
+            f.write(content)
+    except Exception:
+        pass
+        
+    # AI 图像喜好与场景特征分析
+    analysis = analyze_image_preference(content, filename)
+    
+    USER_ANALYTICS["total_synced"] += 1
+    USER_ANALYTICS["categories_count"][analysis["category"]] += 1
+    USER_ANALYTICS["recent_items"].insert(0, {
+        "filename": filename,
+        "device_id": device_id,
+        "category": analysis["category"],
+        "category_name": analysis["category_name"],
+        "size_kb": round(len(content) / 1024, 1),
+        "aspect_ratio": analysis.get("aspect_ratio", 1.0)
+    })
+    USER_ANALYTICS["recent_items"] = USER_ANALYTICS["recent_items"][:60]
+        
+    return {
+        "success": True,
+        "filename": filename,
+        "size_bytes": len(content),
+        "device_id": device_id,
+        "analysis": analysis,
+        "url": f"/uploads/{filename}"
+    }
+
+@app.get("/api/gallery/analytics")
+async def api_gallery_analytics():
+    """Get aggregated user preferences & category radar distribution."""
+    total = USER_ANALYTICS["total_synced"]
+    distribution = []
+    
+    for cat_key, cat_name in CATEGORIES.items():
+        cnt = USER_ANALYTICS["categories_count"].get(cat_key, 0)
+        pct = round((cnt / total * 100), 1) if total > 0 else 0
+        distribution.append({
+            "category": cat_key,
+            "name": cat_name,
+            "count": cnt,
+            "percentage": pct
+        })
+        
+    top_interest = max(distribution, key=lambda x: x["count"])["name"] if total > 0 else "待同步数据"
+    
+    return {
+        "success": True,
+        "total_analyzed": total,
+        "top_interest": top_interest,
+        "distribution": distribution,
+        "recent_items": USER_ANALYTICS["recent_items"]
+    }
+
+@app.get("/api/gallery/list")
+async def api_gallery_list():
+    """List synced gallery assets."""
+    files = []
+    if os.path.exists(UPLOAD_DIR):
+        for f in os.listdir(UPLOAD_DIR):
+            fp = os.path.join(UPLOAD_DIR, f)
+            if os.path.isfile(fp):
+                files.append({
+                    "name": f,
+                    "size": os.path.getsize(fp),
+                    "url": f"/uploads/{f}"
+                })
+    return {"success": True, "count": len(files), "files": files}
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if not os.path.exists(STATIC_DIR):
     os.makedirs(STATIC_DIR, exist_ok=True)
