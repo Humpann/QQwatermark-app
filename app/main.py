@@ -48,6 +48,7 @@ class ZipRequest(BaseModel):
     items: List[ZipItem]
 
 # API Endpoints
+@app.get("/lan-info")
 @app.get("/api/lan-info")
 async def get_lan_info(request: Request):
     """Retrieve LAN IP addresses, port, and QR Code for multi-device access."""
@@ -65,6 +66,7 @@ async def get_lan_info(request: Request):
         "qr_code": qr_code
     }
 
+@app.post("/parse", response_model=ParseResult)
 @app.post("/api/parse", response_model=ParseResult)
 async def api_parse(req: ParseRequest):
     """Parse a single short video / image album / live photo link."""
@@ -73,6 +75,7 @@ async def api_parse(req: ParseRequest):
     result = await parse_media(req.url.strip())
     return result
 
+@app.post("/batch-parse")
 @app.post("/api/batch-parse")
 async def api_batch_parse(req: BatchParseRequest):
     """Batch parse multiple links extracted from raw text or list."""
@@ -97,6 +100,7 @@ async def api_batch_parse(req: BatchParseRequest):
         "results": [r.model_dump() for r in results]
     }
 
+@app.get("/proxy/stream")
 @app.get("/api/proxy/stream")
 async def api_proxy_stream(request: Request, url: str = Query(...)):
     """Stream media (video/audio/image) with Range header support to avoid 403."""
@@ -105,6 +109,7 @@ async def api_proxy_stream(request: Request, url: str = Query(...)):
     range_header = request.headers.get("Range")
     return await stream_remote_media(url, range_header=range_header, as_attachment=False)
 
+@app.get("/proxy/download")
 @app.get("/api/proxy/download")
 async def api_proxy_download(
     request: Request,
@@ -116,6 +121,7 @@ async def api_proxy_download(
         raise HTTPException(status_code=400, detail="URL is required")
     return await stream_remote_media(url, filename=filename, as_attachment=True)
 
+@app.post("/proxy/zip")
 @app.post("/api/proxy/zip")
 async def api_proxy_zip(req: ZipRequest):
     """Package multiple images/live videos into a ZIP file for one-click download."""
@@ -132,6 +138,7 @@ async def api_proxy_zip(req: ZipRequest):
             "Content-Disposition": f"attachment; filename=\"{safe_title}.zip\"; filename*=UTF-8''{safe_title}.zip"
         }
     )
+
 
 try:
     from app.template import HTML_CONTENT
