@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">OmniMedia Pro</string>
+    <string name="download_started">已开始下载文件至系统相册/下载目录</string>
+    <string name="download_completed">下载完成</string>
+    <string name="download_failed">下载失败，请检查网络</string>
+</resources>

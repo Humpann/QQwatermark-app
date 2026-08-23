@@ -195,6 +195,11 @@ class DouyinParser(BaseParser):
         return None
 
     def _format_result(self, detail: Dict[str, Any], raw_url: str) -> ParseResult:
+        try:
+            with open('G:/Antigravity_Data/scratch/raw_aweme_detail.json', 'w', encoding='utf-8') as f:
+                json.dump(detail, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
         aweme_id = str(detail.get("aweme_id", ""))
         desc = detail.get("desc", "").strip() or "无标题作品"
         

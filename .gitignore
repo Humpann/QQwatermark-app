@@ -1,0 +1,29 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.class
+.pytest_cache/
+.env
+venv/
+ENV/
+env/
+downloads/
+temp/
+*.log
+app/uploads/*
+!app/uploads/.gitkeep
+
+# Android
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+build/
+captures/
+.externalNativeBuild
+.cxx
+local.properties
+android/.gradle
+android/.idea
+android/app/build
