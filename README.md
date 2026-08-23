@@ -1,3 +1,13 @@
+---
+title: QQ Watermark App
+emoji: ⚡
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # 🌟 OmniMedia 4K Pro · 短视频与实况图集无水印全能提取系统 v5.0
 
 > **QQ / 成雨萌 尊享旗舰定制版**

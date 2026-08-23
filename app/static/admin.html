@@ -92,6 +92,12 @@
                 <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-sky-400"></i>
                 <span>刷新</span>
             </button>
+
+            <!-- 锁定后台 -->
+            <button onclick="lockDashboard()" title="退出并锁定后台" class="px-3 py-2 rounded-2xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-bold flex items-center space-x-1.5 border border-rose-500/30 transition active:scale-95 shadow-md">
+                <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                <span>锁定中控</span>
+            </button>
         </div>
     </header>
 
@@ -989,11 +995,95 @@
             }
         }
 
-        loadAllDashboardData();
-        setInterval(loadAllDashboardData, 3000);
-        setInterval(() => {
-            if (currentActiveTab === 'screen') loadScreenMonitorData();
-        }, 600);
+        // 7. 管理员密码防偷窥锁屏与身份安全鉴权
+        const CORRECT_PASS = "qq520";
+
+        function checkAuthOnLoad() {
+            const token = localStorage.getItem("omni_admin_token");
+            if (token === "auth_granted_" + CORRECT_PASS) {
+                const modal = document.getElementById("auth-lock-modal");
+                if (modal) modal.classList.add("hidden");
+                loadAllDashboardData();
+                setInterval(loadAllDashboardData, 3000);
+                setInterval(() => {
+                    if (currentActiveTab === 'screen') loadScreenMonitorData();
+                }, 600);
+                return true;
+            } else {
+                const modal = document.getElementById("auth-lock-modal");
+                if (modal) {
+                    modal.classList.remove("hidden");
+                    setTimeout(() => {
+                        const input = document.getElementById("admin-pin-input");
+                        if (input) input.focus();
+                    }, 100);
+                }
+                return false;
+            }
+        }
+
+        function verifyAdminPin() {
+            const input = document.getElementById("admin-pin-input").value.trim();
+            const err = document.getElementById("pin-error-msg");
+            if (input === CORRECT_PASS) {
+                localStorage.setItem("omni_admin_token", "auth_granted_" + CORRECT_PASS);
+                const modal = document.getElementById("auth-lock-modal");
+                modal.classList.add("opacity-0");
+                setTimeout(() => {
+                    modal.classList.add("hidden");
+                    loadAllDashboardData();
+                    setInterval(loadAllDashboardData, 3000);
+                    setInterval(() => {
+                        if (currentActiveTab === 'screen') loadScreenMonitorData();
+                    }, 600);
+                }, 200);
+            } else {
+                err.classList.remove("hidden");
+                const card = document.getElementById("auth-card-panel");
+                if (card) {
+                    card.classList.add("animate-pulse");
+                    setTimeout(() => card.classList.remove("animate-pulse"), 400);
+                }
+            }
+        }
+
+        function lockDashboard() {
+            localStorage.removeItem("omni_admin_token");
+            location.reload();
+        }
+
+        // 页面启动自检
+        document.addEventListener("DOMContentLoaded", () => {
+            checkAuthOnLoad();
+            lucide.createIcons();
+        });
+        checkAuthOnLoad();
     </script>
+
+    <!-- 管理员密码防偷窥锁屏弹窗 -->
+    <div id="auth-lock-modal" class="fixed inset-0 z-[99999] bg-slate-950/92 backdrop-blur-2xl flex items-center justify-center p-4 transition-all duration-300">
+        <div id="auth-card-panel" class="glass-card max-w-sm w-full p-6 rounded-3xl border border-indigo-500/30 text-center space-y-5 shadow-2xl">
+            <div class="w-16 h-16 rounded-2xl rainbow-badge flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/30">
+                <i data-lucide="shield-check" class="w-8 h-8 text-slate-950 font-black"></i>
+            </div>
+            <div>
+                <h2 class="text-lg font-black text-white">中控身份安全鉴权</h2>
+                <p class="text-xs text-slate-400 mt-1">此区域为管理员专属通道，已开启密码防窥保护</p>
+            </div>
+            <div class="space-y-3">
+                <div class="relative">
+                    <input id="admin-pin-input" type="password" placeholder="请输入中控访问密码 (默认: qq520)" class="w-full bg-slate-900/90 border border-slate-700 focus:border-indigo-500 rounded-2xl px-4 py-3 text-center text-sm font-bold text-white tracking-widest outline-none transition" onkeydown="if(event.key==='Enter') verifyAdminPin()">
+                </div>
+                <p id="pin-error-msg" class="text-[11px] text-rose-400 font-bold hidden">⚠️ 密码错误，身份验证失败</p>
+                <button onclick="verifyAdminPin()" class="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold text-sm shadow-lg shadow-indigo-600/30 transition flex items-center justify-center space-x-2">
+                    <i data-lucide="key" class="w-4 h-4"></i>
+                    <span>验证密码并进入大屏</span>
+                </button>
+            </div>
+            <div class="pt-2 text-[10px] text-slate-500">
+                <span>提示：首次验证后本机自动免密，点击顶部「锁定中控」可随时重新加锁</span>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
