@@ -21,7 +21,7 @@ from app.utils.proxy import stream_remote_media, create_zip_archive
 app = FastAPI(
     title="短视频与实况图集无水印全能提取工具",
     description="支持抖音/快手4K视频、高清图集、实况图无水印解析与局域网多人使用",
-    version="1.0.0"
+    version="5.0.0"
 )
 
 # Enable CORS for local & LAN clients
