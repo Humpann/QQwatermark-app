@@ -150,24 +150,47 @@ class DouyinParser(BaseParser):
         except Exception:
             pass
 
-        # API 3: Web Page SSR Data Extraction (Fallback 2)
-        page_url = f"https://www.douyin.com/video/{aweme_id}"
-        try:
-            resp = await client.get(page_url, headers=desktop_headers, timeout=10.0)
-            if resp.status_code == 200:
-                html = resp.text
-                # Find RENDER_DATA or _ROUTER_DATA
-                match = re.search(r'<script id="RENDER_DATA" type="application/json">(.+?)</script>', html)
-                if match:
-                    raw_data = urllib.parse.unquote(match.group(1))
-                    data = json.loads(raw_data)
-                    for key, val in data.items():
-                        if isinstance(val, dict) and "aweme" in val:
-                            detail = val.get("aweme", {}).get("detail")
-                            if detail:
-                                return detail
-        except Exception:
-            pass
+        # API 3: Web Page SSR / Share Pages Data Extraction (Fallback 2)
+        share_pages = [
+            f"https://www.iesdouyin.com/share/video/{aweme_id}/",
+            f"https://www.iesdouyin.com/share/note/{aweme_id}/",
+            f"https://www.iesdouyin.com/share/slides/{aweme_id}/",
+            f"https://www.douyin.com/video/{aweme_id}"
+        ]
+        for sp in share_pages:
+            try:
+                resp = await client.get(sp, timeout=8.0)
+                if resp.status_code == 200:
+                    html = resp.text
+                    # Check window._ROUTER_DATA
+                    r_match = re.search(r'window\._ROUTER_DATA\s*=\s*(\{.*?\})\s*</script>', html, re.DOTALL)
+                    if r_match:
+                        r_data = json.loads(r_match.group(1))
+                        loader = r_data.get("loaderData", {})
+                        for k, v in loader.items():
+                            if isinstance(v, dict):
+                                if "videoInfoRes" in v:
+                                    items = v["videoInfoRes"].get("item_list", [])
+                                    if items:
+                                        return items[0]
+                                if "itemInfo" in v:
+                                    struct = v["itemInfo"].get("itemStruct")
+                                    if struct:
+                                        return struct
+                                if "itemStruct" in v:
+                                    return v["itemStruct"]
+                    # Check RENDER_DATA
+                    match = re.search(r'<script id="RENDER_DATA" type="application/json">(.+?)</script>', html)
+                    if match:
+                        raw_data = urllib.parse.unquote(match.group(1))
+                        data = json.loads(raw_data)
+                        for key, val in data.items():
+                            if isinstance(val, dict) and "aweme" in val:
+                                detail = val.get("aweme", {}).get("detail")
+                                if detail:
+                                    return detail
+            except Exception:
+                pass
 
         return None
 
