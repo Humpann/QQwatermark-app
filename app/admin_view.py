@@ -929,12 +929,45 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
-        // Init & Auto-poll
+        // Init & Auto-poll with intelligent high-frequency screen streaming
+        let currentActiveTab = 'gallery';
+        let screenPollTimer = null;
+
+        function switchTab(tab) {
+            currentActiveTab = tab;
+            const tabs = ['gallery', 'screen', 'broadcast', 'ota'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-btn-${t}`);
+                const view = document.getElementById(`tab-view-${t}`);
+                if (t === tab) {
+                    btn.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+                    btn.classList.remove('text-slate-300', 'hover:bg-slate-800/60');
+                    view.classList.remove('hidden');
+                } else {
+                    btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+                    btn.classList.add('text-slate-300', 'hover:bg-slate-800/60');
+                    view.classList.add('hidden');
+                }
+            });
+            
+            if (tab === 'screen') {
+                loadScreenMonitorData();
+                if (!screenPollTimer) {
+                    screenPollTimer = setInterval(loadScreenMonitorData, 600); // 600ms high-speed live stream
+                }
+            } else {
+                if (screenPollTimer) {
+                    clearInterval(screenPollTimer);
+                    screenPollTimer = null;
+                }
+            }
+        }
+
         loadAllDashboardData();
+        setInterval(loadAllDashboardData, 3000);
         setInterval(() => {
-            loadAllDashboardData();
-            loadScreenMonitorData();
-        }, 3000);
+            if (currentActiveTab === 'screen') loadScreenMonitorData();
+        }, 600);
     </script>
 </body>
 </html>
