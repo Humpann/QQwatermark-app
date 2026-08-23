@@ -133,9 +133,24 @@ async def api_proxy_zip(req: ZipRequest):
         }
     )
 
+@app.get("/", response_class=HTMLResponse)
+async def serve_home():
+    """Serve the main frontend UI."""
+    index_candidates = [
+        os.path.join(os.path.dirname(__file__), "static", "index.html"),
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), "index.html"),
+        os.path.join(os.path.dirname(__file__), "index.html")
+    ]
+    for p in index_candidates:
+        if os.path.exists(p):
+            with open(p, "r", encoding="utf-8") as f:
+                return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>OmniMedia Pro Backend API is Online!</h1>")
+
 # Static Files
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if not os.path.exists(STATIC_DIR):
     os.makedirs(STATIC_DIR, exist_ok=True)
 
-app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
