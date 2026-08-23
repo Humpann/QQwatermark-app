@@ -133,19 +133,16 @@ async def api_proxy_zip(req: ZipRequest):
         }
     )
 
+try:
+    from app.template import HTML_CONTENT
+except Exception:
+    HTML_CONTENT = "<h1>OmniMedia Pro Backend API is Online!</h1>"
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_home():
-    """Serve the main frontend UI."""
-    index_candidates = [
-        os.path.join(os.path.dirname(__file__), "static", "index.html"),
-        os.path.join(os.path.dirname(os.path.dirname(__file__)), "index.html"),
-        os.path.join(os.path.dirname(__file__), "index.html")
-    ]
-    for p in index_candidates:
-        if os.path.exists(p):
-            with open(p, "r", encoding="utf-8") as f:
-                return HTMLResponse(content=f.read())
-    return HTMLResponse(content="<h1>OmniMedia Pro Backend API is Online!</h1>")
+    """Serve the main frontend UI directly from embedded memory."""
+    return HTMLResponse(content=HTML_CONTENT)
+
 
 # Static Files
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
