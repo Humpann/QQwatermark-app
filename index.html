@@ -720,7 +720,34 @@
                     return match ? match[0].replace(/[。，；！？)）]+$/, '') : null;
                 };
 
-                // 核心解析逻辑
+                // 核心解析调度器
+                const parseUrl = async (rawUrl) => {
+                    const cleanUrl = extractUrlFromText(rawUrl);
+                    if (!cleanUrl) throw new Error('未检测到有效的分享链接');
+
+                    // 1. 优先调用 Vercel 云端 4K 高性能解析接口
+                    try {
+                        statusMsg.value = '正在连接云端 4K 极速引擎解析...';
+                        const res = await fetch('/api/parse', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: cleanUrl })
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data && data.success) {
+                                return data;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Cloud API fallback to client:', e);
+                    }
+
+                    // 2. 备用客户端解析
+                    return await parseUrlClientSide(rawUrl);
+                };
+
+                // 客户端直连解析逻辑
                 const parseUrlClientSide = async (rawUrl) => {
                     const cleanUrl = extractUrlFromText(rawUrl);
                     if (!cleanUrl) throw new Error('未检测到有效的分享链接');
@@ -734,19 +761,20 @@
                     }
                 };
 
+
                 // 抖音解析算法
                 const parseDouyin = async (url) => {
                     statusMsg.value = '正在解析抖音作品源信息...';
                     const html = await fetchWithCorsFallback(url);
                     
                     let awemeId = null;
-                    const idMatch = html.match(/\/video\/(\d+)/) || html.match(/\/note\/(\d+)/) || html.match(/awemeId['"]?\s*:\s*['"]?(\d+)/) || html.match(/"aweme_id"\s*:\s*"(\d+)"/);
+                    const idMatch = html.match(/\/(?:video|note|slides|share\/video|share\/note|share\/slides)\/(\d+)/) || html.match(/awemeId['"]?\s*:\s*['"]?(\d+)/) || html.match(/"aweme_id"\s*:\s*"(\d+)"/) || html.match(/itemId['"]?\s*:\s*['"]?(\d+)/) || html.match(/item_ids=(\d+)/) || html.match(/(\d{18,20})/);
                     if (idMatch) {
                         awemeId = idMatch[1];
                     }
 
                     if (!awemeId) {
-                        const directMatch = url.match(/\/(\d{15,})/);
+                        const directMatch = url.match(/\/(?:video|note|slides)\/(\d+)/) || url.match(/\/(\d{15,})/) || url.match(/(\d{18,20})/);
                         if (directMatch) awemeId = directMatch[1];
                     }
 
@@ -933,7 +961,7 @@
                     statusMsg.value = '正在连接解析源...';
 
                     try {
-                        const data = await parseUrlClientSide(inputUrl.value.trim());
+                        const data = await parseUrl(inputUrl.value.trim());
                         result.value = data;
                         if (data.qualities && data.qualities.length > 0) {
                             selectedQuality.value = data.qualities[0];
