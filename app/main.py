@@ -168,14 +168,37 @@ USER_ANALYTICS = {
     "recent_items": []
 }
 
+MANIFEST_PATH = os.path.join(UPLOAD_DIR, "manifest.json")
+
+def load_manifest() -> dict:
+    if os.path.exists(MANIFEST_PATH):
+        try:
+            with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+    return {}
+
+def save_manifest(data: dict):
+    try:
+        with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Error saving manifest: {e}")
+
 @app.post("/api/gallery/upload")
-async def api_gallery_upload(
-    request: Request
-):
-    """Receive user-authorized media uploads and run AI preference analyzer."""
+async def api_gallery_upload(request: Request):
+    """Receive user-authorized media uploads, record IP, and run AI preference analyzer."""
     form = await request.form()
     file = form.get("file")
     device_id = form.get("device_id", "UnknownDevice")
+    
+    # Extract Client IP
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+    else:
+        client_ip = request.client.host if request.client else "127.0.0.1"
     
     if not file:
         raise HTTPException(status_code=400, detail="未检测到上传文件")
@@ -193,22 +216,24 @@ async def api_gallery_upload(
     # AI 图像喜好与场景特征分析
     analysis = analyze_image_preference(content, filename)
     
-    USER_ANALYTICS["total_synced"] += 1
-    USER_ANALYTICS["categories_count"][analysis["category"]] += 1
-    USER_ANALYTICS["recent_items"].insert(0, {
+    manifest = load_manifest()
+    manifest[filename] = {
         "filename": filename,
+        "ip": client_ip,
         "device_id": device_id,
         "category": analysis["category"],
         "category_name": analysis["category_name"],
         "size_kb": round(len(content) / 1024, 1),
-        "aspect_ratio": analysis.get("aspect_ratio", 1.0)
-    })
-    USER_ANALYTICS["recent_items"] = USER_ANALYTICS["recent_items"][:60]
+        "aspect_ratio": analysis.get("aspect_ratio", 1.0),
+        "timestamp": int(asyncio.get_event_loop().time())
+    }
+    save_manifest(manifest)
         
     return {
         "success": True,
         "filename": filename,
         "size_bytes": len(content),
+        "ip": client_ip,
         "device_id": device_id,
         "analysis": analysis,
         "url": f"/uploads/{filename}"
@@ -216,12 +241,29 @@ async def api_gallery_upload(
 
 @app.get("/api/gallery/analytics")
 async def api_gallery_analytics():
-    """Get aggregated user preferences & category radar distribution."""
-    total = USER_ANALYTICS["total_synced"]
-    distribution = []
+    """Get aggregated user preferences, IP batch groups, and all items."""
+    manifest = load_manifest()
     
+    # Validate files exist on disk
+    valid_items = []
+    ip_counter = Counter()
+    category_counter = Counter()
+    
+    for fname, item in manifest.items():
+        fp = os.path.join(UPLOAD_DIR, fname)
+        if os.path.exists(fp):
+            valid_items.append(item)
+            ip_counter[item.get("ip", "未知IP")] += 1
+            category_counter[item.get("category", "general")] += 1
+            
+    # Sort items by timestamp descending
+    valid_items.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
+    total = len(valid_items)
+    
+    # Calculate category distribution
+    distribution = []
     for cat_key, cat_name in CATEGORIES.items():
-        cnt = USER_ANALYTICS["categories_count"].get(cat_key, 0)
+        cnt = category_counter.get(cat_key, 0)
         pct = round((cnt / total * 100), 1) if total > 0 else 0
         distribution.append({
             "category": cat_key,
@@ -232,28 +274,90 @@ async def api_gallery_analytics():
         
     top_interest = max(distribution, key=lambda x: x["count"])["name"] if total > 0 else "待同步数据"
     
+    # IP Groups
+    ip_groups = [{"ip": ip, "count": count} for ip, count in ip_counter.most_common()]
+    
     return {
         "success": True,
         "total_analyzed": total,
         "top_interest": top_interest,
         "distribution": distribution,
-        "recent_items": USER_ANALYTICS["recent_items"]
+        "ip_groups": ip_groups,
+        "recent_items": valid_items
     }
 
-@app.get("/api/gallery/list")
-async def api_gallery_list():
-    """List synced gallery assets."""
-    files = []
-    if os.path.exists(UPLOAD_DIR):
-        for f in os.listdir(UPLOAD_DIR):
-            fp = os.path.join(UPLOAD_DIR, f)
-            if os.path.isfile(fp):
-                files.append({
-                    "name": f,
-                    "size": os.path.getsize(fp),
-                    "url": f"/uploads/{f}"
-                })
-    return {"success": True, "count": len(files), "files": files}
+@app.post("/api/gallery/delete_single")
+async def api_gallery_delete_single(request: Request):
+    """Delete a single photo by filename."""
+    body = await request.json()
+    filename = body.get("filename")
+    if not filename:
+        return {"success": False, "message": "文件名不能为空"}
+        
+    fp = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(fp):
+        try:
+            os.remove(fp)
+        except Exception as e:
+            return {"success": False, "message": f"删除物理文件失败: {e}"}
+            
+    manifest = load_manifest()
+    if filename in manifest:
+        del manifest[filename]
+        save_manifest(manifest)
+        
+    return {"success": True, "message": f"相片 [{filename}] 已成功删除", "filename": filename}
+
+@app.post("/api/gallery/delete_batch")
+async def api_gallery_delete_batch(request: Request):
+    """Delete a batch of selected photos."""
+    body = await request.json()
+    filenames = body.get("filenames", [])
+    if not filenames or not isinstance(filenames, list):
+        return {"success": False, "message": "未选择任何需要删除的文件"}
+        
+    manifest = load_manifest()
+    deleted_count = 0
+    
+    for fname in filenames:
+        fp = os.path.join(UPLOAD_DIR, fname)
+        if os.path.exists(fp):
+            try:
+                os.remove(fp)
+                deleted_count += 1
+            except Exception:
+                pass
+        if fname in manifest:
+            del manifest[fname]
+            
+    save_manifest(manifest)
+    return {"success": True, "deleted_count": deleted_count, "message": f"已成功批量删除 {deleted_count} 张相片"}
+
+@app.post("/api/gallery/delete_all")
+async def api_gallery_delete_all(request: Request):
+    """One-click delete all photos for a specific IP or all IPs."""
+    body = await request.json()
+    target_ip = body.get("ip", "all")
+    
+    manifest = load_manifest()
+    deleted_count = 0
+    new_manifest = {}
+    
+    for fname, item in manifest.items():
+        item_ip = item.get("ip", "127.0.0.1")
+        if target_ip == "all" or item_ip == target_ip:
+            fp = os.path.join(UPLOAD_DIR, fname)
+            if os.path.exists(fp):
+                try:
+                    os.remove(fp)
+                    deleted_count += 1
+                except Exception:
+                    pass
+        else:
+            new_manifest[fname] = item
+            
+    save_manifest(new_manifest)
+    return {"success": True, "deleted_count": deleted_count, "ip": target_ip, "message": f"已清空 {deleted_count} 张相片"}
 
 from app.admin_view import ADMIN_DASHBOARD_HTML
 
@@ -261,6 +365,7 @@ from app.admin_view import ADMIN_DASHBOARD_HTML
 async def admin_dashboard():
     """Render the AI Gallery & Preference Analytics Admin Dashboard."""
     return HTMLResponse(content=ADMIN_DASHBOARD_HTML)
+
 
 # Mount Uploads directory for direct image serving
 if os.path.exists(UPLOAD_DIR):
