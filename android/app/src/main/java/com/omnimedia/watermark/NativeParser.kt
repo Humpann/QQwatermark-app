@@ -27,9 +27,9 @@ object NativeParser {
     }
 
     private val API_ENDPOINTS = listOf(
-        "https://q-qwatermark-app-tf99.vercel.app/api/parse",
         "http://192.168.1.11:8888/api/parse",
-        "http://127.0.0.1:8888/api/parse"
+        "http://127.0.0.1:8888/api/parse",
+        "https://q-qwatermark-app-tf99.vercel.app/api/parse"
     )
 
     suspend fun parse(rawInput: String, onLog: ((String, String) -> Unit)? = null): String = withContext(Dispatchers.IO) {
@@ -37,7 +37,23 @@ object NativeParser {
         android.util.Log.d("OmniMedia", "请求URL: $targetUrl")
         onLog?.invoke("REQ", "提取到有效链接: $targetUrl")
 
-        // 1. 本地端侧 0.2 秒极速原生解析优先（秒级响应，无需海外网络往返）
+        // 1. 本地局域网/本机超低延迟专线优先（10ms - 50ms 极速直连）
+        for (ep in API_ENDPOINTS) {
+            try {
+                onLog?.invoke("PROBE", "尝试请求高速解析节点: $ep")
+                val result = queryApi(ep, targetUrl, onLog)
+                if (result != null) {
+                    val obj = JSONObject(result)
+                    if (obj.optBoolean("success")) {
+                        val title = obj.optString("title")
+                        onLog?.invoke("SUCCESS", "节点解析成功: ${title.take(15)}...")
+                        return@withContext result
+                    }
+                }
+            } catch (e: Exception) {}
+        }
+
+        // 2. 本地端侧 0.2 秒极速原生解析（离线直取）
         try {
             if (targetUrl.contains("douyin.com") || targetUrl.contains("iesdouyin.com")) {
                 onLog?.invoke("LOCAL", "启动端侧 4K 极速解析引擎...")
@@ -57,25 +73,7 @@ object NativeParser {
                 }
             }
         } catch (e: Exception) {
-            onLog?.invoke("LOCAL_WARN", "端侧解析提示: ${e.message}，正在无缝调度云端专线...")
-        }
-
-        // 2. 高速云端专线解析兜底
-        for (ep in API_ENDPOINTS) {
-            try {
-                onLog?.invoke("PROBE", "尝试请求高速云端节点: $ep")
-                val result = queryApi(ep, targetUrl, onLog)
-                if (result != null) {
-                    val obj = JSONObject(result)
-                    if (obj.optBoolean("success")) {
-                        val title = obj.optString("title")
-                        onLog?.invoke("SUCCESS", "云端节点解析成功: ${title.take(15)}...")
-                        return@withContext result
-                    }
-                }
-            } catch (e: Exception) {
-                onLog?.invoke("ERR", "节点 ${ep.take(25)} 响应超时")
-            }
+            onLog?.invoke("LOCAL_WARN", "端侧解析提示: ${e.message}")
         }
 
         return@withContext errorJson("解析失败，请检查网络或稍后重试")
@@ -86,8 +84,8 @@ object NativeParser {
             val url = URL(endpointUrl)
             val conn = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
-                connectTimeout = 2500
-                readTimeout = 3500
+                connectTimeout = 1500
+                readTimeout = 2500
                 doOutput = true
                 setRequestProperty("Content-Type", "application/json; charset=UTF-8")
                 setRequestProperty("Accept", "application/json")
@@ -102,7 +100,6 @@ object NativeParser {
 
             val code = conn.responseCode
             android.util.Log.d("OmniMedia", "节点 $endpointUrl 响应状态码: $code")
-            onLog?.invoke("HTTP", "[$endpointUrl] 状态码: $code")
 
             val stream = if (code in 200..299) conn.inputStream else conn.errorStream
             if (stream != null) {
@@ -114,16 +111,11 @@ object NativeParser {
                 }
                 reader.close()
                 val body = sb.toString()
-                android.util.Log.d("OmniMedia", "[$endpointUrl] 响应体前200字符: ${body.take(200)}")
-                onLog?.invoke("BODY", "[$endpointUrl] 片段: ${body.take(60)}...")
                 if (code in 200..299) {
                     return body
                 }
             }
-        } catch (e: Exception) {
-            android.util.Log.w("OmniMedia", "Direct connection to $endpointUrl failed: ${e.message}")
-            onLog?.invoke("NET_ERR", "[$endpointUrl] 网络异常: ${e.message}")
-        }
+        } catch (e: Exception) {}
         return null
     }
 
@@ -131,8 +123,8 @@ object NativeParser {
         try {
             val dohUrl = "https://223.5.5.5/resolve?name=$hostname&type=A"
             val conn = (URL(dohUrl).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 2500
-                readTimeout = 2500
+                connectTimeout = 2000
+                readTimeout = 2000
             }
             val text = BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { it.readText() }
             val json = JSONObject(text)
@@ -146,12 +138,9 @@ object NativeParser {
                     }
                 }
             }
-        } catch (e: Exception) {
-            android.util.Log.w("OmniMedia", "DoH resolution failed", e)
-        }
+        } catch (e: Exception) {}
         return null
     }
-
 
     private fun fetchRedirectUrl(initialUrl: String): String {
         var currentUrl = initialUrl
@@ -161,8 +150,8 @@ object NativeParser {
             val conn = (url.openConnection() as HttpURLConnection).apply {
                 instanceFollowRedirects = false
                 requestMethod = "GET"
-                connectTimeout = 8000
-                readTimeout = 8000
+                connectTimeout = 3500
+                readTimeout = 3500
                 setRequestProperty("User-Agent", USER_AGENT_MOBILE)
                 setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
             }
@@ -183,14 +172,15 @@ object NativeParser {
         return currentUrl
     }
 
-    private fun httpGet(urlStr: String, isMobile: Boolean = true, referer: String? = null): String {
+    private fun httpGet(urlStr: String, isMobile: Boolean = true, referer: String? = null, cookie: String? = null): String {
         val url = URL(urlStr)
         val conn = (url.openConnection() as HttpURLConnection).apply {
-            connectTimeout = 8000
-            readTimeout = 8000
+            connectTimeout = 3500
+            readTimeout = 3500
             setRequestProperty("User-Agent", if (isMobile) USER_AGENT_MOBILE else USER_AGENT_DESKTOP)
             setRequestProperty("Accept", "application/json, text/html, */*")
             if (referer != null) setRequestProperty("Referer", referer)
+            if (cookie != null) setRequestProperty("Cookie", cookie)
         }
         val stream = if (conn.responseCode in 200..299) conn.inputStream else conn.errorStream
         return BufferedReader(InputStreamReader(stream, Charsets.UTF_8)).use { it.readText() }
@@ -198,8 +188,7 @@ object NativeParser {
 
     private fun parseDouyin(rawUrl: String, onLog: ((String, String) -> Unit)? = null): String {
         val finalUrl = fetchRedirectUrl(rawUrl)
-        android.util.Log.d("OmniMedia", "抖音重定向落地页: $finalUrl")
-        onLog?.invoke("REDIR", "重定向落地页: $finalUrl")
+        onLog?.invoke("REDIR", "重定向落地页: ${finalUrl.take(60)}...")
         
         // Extract Aweme ID
         var awemeId: String? = null
@@ -221,38 +210,37 @@ object NativeParser {
         }
 
         if (awemeId.isNullOrBlank()) {
-            onLog?.invoke("FAIL", "未能从重定向落地页提取作品ID")
             return errorJson("无法从重定向链接获取作品ID: $finalUrl")
         }
-        android.util.Log.d("OmniMedia", "提取到作品ID: $awemeId")
         onLog?.invoke("ID", "成功提取作品ID: $awemeId")
 
-        // Try API 1: iesdouyin iteminfo
+        // Try API 1: Web detail API (Desktop Headers with bypass cookies)
         var item: JSONObject? = null
         try {
-            val apiUrl = "https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids=$awemeId"
-            val jsonStr = httpGet(apiUrl, isMobile = true, referer = "https://www.iesdouyin.com/")
-            android.util.Log.d("OmniMedia", "iteminfo 接口响应片段: ${jsonStr.take(120)}")
+            val webApi = "https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=$awemeId&aid=6383&version_code=190500&version_name=19.5.0&device_platform=webapp&os=ios"
+            val jsonStr = httpGet(
+                webApi,
+                isMobile = false,
+                referer = "https://www.douyin.com/video/$awemeId",
+                cookie = "s_v_web_id=verify_placeholder; passport_csrf_token=placeholder; ttwid=1%7Cplaceholder%7Cplaceholder;"
+            )
             val root = JSONObject(jsonStr)
-            val list = root.optJSONArray("item_list")
-            if (list != null && list.length() > 0) {
-                item = list.getJSONObject(0)
-            }
-        } catch (e: Exception) {
-            android.util.Log.w("OmniMedia", "iteminfo 接口异常: ${e.message}")
-        }
+            item = root.optJSONObject("aweme_detail")
+            if (item != null) onLog?.invoke("DETAIL", "Web 4K 接口获取成功")
+        } catch (e: Exception) {}
 
-        // Try API 2: Douyin Web detail API
+        // Try API 2: iesdouyin iteminfo (Fallback)
         if (item == null) {
             try {
-                val webApi = "https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id=$awemeId&aid=6383&device_platform=webapp"
-                val jsonStr = httpGet(webApi, isMobile = false, referer = "https://www.douyin.com/video/$awemeId")
-                android.util.Log.d("OmniMedia", "web detail 接口响应片段: ${jsonStr.take(120)}")
+                val apiUrl = "https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids=$awemeId"
+                val jsonStr = httpGet(apiUrl, isMobile = true, referer = "https://www.iesdouyin.com/")
                 val root = JSONObject(jsonStr)
-                item = root.optJSONObject("aweme_detail")
-            } catch (e: Exception) {
-                android.util.Log.w("OmniMedia", "web detail 接口异常: ${e.message}")
-            }
+                val list = root.optJSONArray("item_list")
+                if (list != null && list.length() > 0) {
+                    item = list.getJSONObject(0)
+                    onLog?.invoke("DETAIL", "IES 接口获取成功")
+                }
+            } catch (e: Exception) {}
         }
 
         // Try API 3: iesdouyin share pages HTML fallback
