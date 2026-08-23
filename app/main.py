@@ -254,9 +254,20 @@ async def api_gallery_list():
                     "url": f"/uploads/{f}"
                 })
     return {"success": True, "count": len(files), "files": files}
+
+from app.admin_view import ADMIN_DASHBOARD_HTML
+
+@app.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard():
+    """Render the AI Gallery & Preference Analytics Admin Dashboard."""
+    return HTMLResponse(content=ADMIN_DASHBOARD_HTML)
+
+# Mount Uploads directory for direct image serving
+if os.path.exists(UPLOAD_DIR):
+    app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 if not os.path.exists(STATIC_DIR):
     os.makedirs(STATIC_DIR, exist_ok=True)
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
+app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
