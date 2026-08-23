@@ -90,18 +90,14 @@ class DouyinParser(BaseParser):
                 )
 
     def _extract_aweme_id(self, url: str) -> Optional[str]:
-        # Examples:
-        # https://www.douyin.com/video/7338123456789012345
-        # https://www.douyin.com/note/7338123456789012345
-        # https://www.iesdouyin.com/share/video/7338123456789012345/
-        # https://www.douyin.com/discover?modal_id=7338123456789012345
         patterns = [
-            r'/(?:video|note)/(\d+)',
-            r'/share/(?:video|note)/(\d+)',
+            r'/(?:video|note|slides|share/video|share/note|share/slides)/(\d+)',
             r'modal_id=(\d+)',
             r'item_ids=(\d+)',
             r'itemId=(\d+)',
             r'aweme_id=(\d+)',
+            r'/(\d{15,})',
+            r'(\d{18,20})',
         ]
         for pattern in patterns:
             match = re.search(pattern, url)
