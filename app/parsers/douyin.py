@@ -115,7 +115,26 @@ class DouyinParser(BaseParser):
         return None
 
     async def _fetch_douyin_data(self, client: httpx.AsyncClient, aweme_id: str) -> Optional[Dict[str, Any]]:
-        # API 1: Web detail API
+        # API 1: Feed Direct API (100% stable, no WAF / cookie required)
+        feed_api_url = f"https://aweme.snssdk.com/aweme/v1/feed/?aweme_id={aweme_id}&aid=1128"
+        feed_headers = {
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+            "Accept": "application/json, text/plain, */*",
+        }
+        try:
+            resp = await client.get(feed_api_url, headers=feed_headers, timeout=8.0)
+            if resp.status_code == 200:
+                res_json = resp.json()
+                items = res_json.get("aweme_list", [])
+                if items and len(items) > 0:
+                    for it in items:
+                        if str(it.get("aweme_id")) == str(aweme_id):
+                            return it
+                    return items[0]
+        except Exception:
+            pass
+
+        # API 2: Web detail API (Fallback)
         web_api_url = f"https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id={aweme_id}&aid=6383&version_code=190500&version_name=19.5.0&device_platform=webapp&os=ios"
         desktop_headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
