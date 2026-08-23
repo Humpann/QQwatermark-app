@@ -139,9 +139,13 @@ except Exception:
     HTML_CONTENT = "<h1>OmniMedia Pro Backend API is Online!</h1>"
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
+@app.get("/api/index", response_class=HTMLResponse)
 async def serve_home():
     """Serve the main frontend UI directly from embedded memory."""
     return HTMLResponse(content=HTML_CONTENT)
+
 
 
 # Static Files
