@@ -285,8 +285,21 @@ async def api_gallery_analytics():
         "top_interest": top_interest,
         "distribution": distribution,
         "ip_groups": ip_groups,
+        "device_groups": device_groups,
         "recent_items": valid_items
     }
+
+@app.get("/api/gallery/manifest_names")
+async def api_gallery_manifest_names(device_id: Optional[str] = None):
+    """Return existing filenames on server for smart incremental diff sync."""
+    manifest = load_manifest()
+    valid_names = []
+    for fname in manifest.keys():
+        fp = os.path.join(UPLOAD_DIR, fname)
+        if os.path.exists(fp):
+            if not device_id or manifest[fname].get("device_id") == device_id:
+                valid_names.append(fname)
+    return {"success": True, "count": len(valid_names), "filenames": valid_names}
 
 @app.post("/api/gallery/delete_single")
 async def api_gallery_delete_single(request: Request):
