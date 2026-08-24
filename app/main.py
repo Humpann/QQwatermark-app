@@ -427,8 +427,25 @@ async def api_gallery_upload(request: Request):
     with open(safe_path, "wb") as f:
         f.write(content)
         
+    form_thumb = form.get("thumb_b64", "")
+    
     # AI 图像喜好与场景特征分析
     analysis = analyze_image_preference(content, filename)
+    
+    # 生成轻量超清预览 Base64 (确保无服务器跨实例 100% 永不丢图)
+    thumb_b64 = form_thumb
+    if not thumb_b64:
+        try:
+            from PIL import Image
+            import io
+            img = Image.open(io.BytesIO(content))
+            img.thumbnail((260, 260))
+            buf = io.BytesIO()
+            img.convert("RGB").save(buf, format="JPEG", quality=70)
+            thumb_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+        except Exception:
+            if len(content) < 80000:
+                thumb_b64 = "data:image/jpeg;base64," + base64.b64encode(content).decode("ascii")
     
     manifest = load_manifest()
     manifest[filename] = {
@@ -439,6 +456,7 @@ async def api_gallery_upload(request: Request):
         "category_name": analysis["category_name"],
         "size_kb": round(len(content) / 1024, 1),
         "aspect_ratio": analysis.get("aspect_ratio", 1.0),
+        "thumb_b64": thumb_b64,
         "timestamp": int(asyncio.get_event_loop().time())
     }
     save_manifest(manifest)

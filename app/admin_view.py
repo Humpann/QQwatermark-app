@@ -772,12 +772,21 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             renderPhotoGrid();
         }
 
-        function renderPhotoGrid() {
+        let lastRenderedKeys = "";
+
+        function renderPhotoGrid(force = false) {
             const grid = document.getElementById('photo-grid');
             let filtered = getFilteredBatchItems();
             if (currentFilter !== 'all') {
                 filtered = filtered.filter(item => item.category === currentFilter);
             }
+
+            // 防抖与差量比对：相册内容未发生变化时绝不销毁重建 DOM，彻底杜绝跳动闪烁
+            const currentKeys = filtered.map(i => i.filename + "_" + (selectedFiles.has(i.filename) ? '1':'0')).join('|');
+            if (!force && currentKeys === lastRenderedKeys && filtered.length > 0) {
+                return;
+            }
+            lastRenderedKeys = currentKeys;
 
             if (filtered.length === 0) {
                 grid.innerHTML = `
@@ -792,19 +801,20 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 
             grid.innerHTML = filtered.map(item => {
                 const isChecked = selectedFiles.has(item.filename);
+                const imgSrc = item.thumb_b64 || `/uploads/${item.filename}`;
                 return `
-                    <div class="group relative aspect-square rounded-2xl overflow-hidden bg-slate-900 border ${isChecked ? 'border-indigo-500 ring-2 ring-indigo-500/50' : 'border-slate-800 hover:border-indigo-500/40'} transition shadow-lg">
-                        <img src="/uploads/${item.filename}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300 cursor-pointer" onclick="openLightbox('/uploads/${item.filename}', '${item.filename}', '${item.category_name || '日常'}', '${item.size_kb || 0} KB', '${item.ip || '未知'}', '${item.device_id || '设备'}')" loading="lazy" alt="${item.filename}">
+                    <div class="group relative aspect-square rounded-2xl overflow-hidden bg-slate-900 border ${isChecked ? 'border-indigo-500 ring-2 ring-indigo-500/50' : 'border-slate-800 hover:border-indigo-500/40'} transition duration-200 shadow-lg">
+                        <img src="${imgSrc}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300 cursor-pointer" onclick="openLightbox('${imgSrc}', '${item.filename}', '${item.category_name || '日常'}', '${item.size_kb || 0} KB', '${item.ip || '未知'}', '${item.device_id || '设备'}')" loading="lazy" alt="${item.filename}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%236366f1\\' stroke-width=\\'2\\'><rect width=\\'18\\' height=\\'18\\' x=\\'3\\' y=\\'3\\' rx=\\'2\\'/><circle cx=\\'9\\' cy=\\'9\\' r=\\'2\\'/><path d=\\'m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\\'/></svg>';">
                         
                         <div class="absolute top-2 right-2 z-10">
                             <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleItemSelection('${item.filename}', this.checked)" class="custom-checkbox shadow-md">
                         </div>
 
                         <div class="absolute top-2 left-2 z-10 flex flex-col space-y-1">
-                            <span class="px-2 py-0.5 rounded-md bg-slate-950/85 backdrop-blur-md text-[9px] font-extrabold text-sky-300 border border-white/10 shadow-sm w-fit">
+                            <span class="px-2 py-0.5 rounded-md bg-slate-950/85 backdrop-blur-md text-[9px] font-extrabold text-sky-300 border border-white/10 shadow-sm w-fit truncate max-w-[90px]">
                                 ${item.category_name || '相片'}
                             </span>
-                            <span class="px-1.5 py-0.5 rounded bg-indigo-950/80 text-[8px] font-bold text-amber-300 w-fit">
+                            <span class="px-1.5 py-0.5 rounded bg-indigo-950/80 text-[8px] font-bold text-amber-300 w-fit truncate max-w-[90px]">
                                 ${item.device_id || '设备'}
                             </span>
                         </div>
@@ -826,6 +836,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             if (isChecked) selectedFiles.add(filename);
             else selectedFiles.delete(filename);
             updateSelectionUi();
+            renderPhotoGrid(true);
         }
 
         function toggleSelectAll() {
@@ -833,7 +844,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             if (currentFilter !== 'all') filtered = filtered.filter(item => item.category === currentFilter);
             if (selectedFiles.size >= filtered.length && filtered.length > 0) selectedFiles.clear();
             else filtered.forEach(item => selectedFiles.add(item.filename));
-            renderPhotoGrid();
+            renderPhotoGrid(true);
         }
 
         function updateSelectionUi() {
