@@ -636,10 +636,8 @@ if not os.path.exists(STATIC_DIR):
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/index.html", response_class=HTMLResponse)
 async def serve_index():
-    index_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "index.html")
-    if os.path.exists(index_path):
-        with open(index_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
+    """Default entrypoint directly renders the Admin Management Dashboard."""
     return HTMLResponse(content=ADMIN_DASHBOARD_HTML)
 
