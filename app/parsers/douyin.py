@@ -67,8 +67,13 @@ class DouyinParser(BaseParser):
                         original_url=raw_url
                     )
 
-                # 2. Fetch data from Douyin API endpoints
-                data = await self._fetch_douyin_data(client, aweme_id)
+                # 2. Try direct extraction from redirect response HTML
+                data = self._extract_aweme_data_from_html(resp.text, aweme_id)
+
+                # 3. If not found in initial HTML, fetch from Douyin APIs & Share pages
+                if not data:
+                    data = await self._fetch_douyin_data(client, aweme_id)
+
                 if not data:
                     return ParseResult(
                         success=False,
@@ -112,6 +117,62 @@ class DouyinParser(BaseParser):
         match2 = re.search(r'\"aweme_id\"\s*:\s*\"(\d+)\"', html)
         if match2:
             return match2.group(1)
+        return None
+
+    def _extract_aweme_data_from_html(self, html: str, aweme_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        # 1. Try window._ROUTER_DATA
+        r_match = re.search(r'window\._ROUTER_DATA\s*=\s*(\{.*?\})\s*</script>', html, re.DOTALL)
+        if r_match:
+            try:
+                r_data = json.loads(r_match.group(1))
+                res = self._find_aweme_recursive(r_data, aweme_id)
+                if res:
+                    return res
+            except Exception:
+                pass
+
+        # 2. Try RENDER_DATA
+        match = re.search(r'<script id="RENDER_DATA" type="application/json">(.+?)</script>', html)
+        if match:
+            try:
+                raw_data = urllib.parse.unquote(match.group(1))
+                data = json.loads(raw_data)
+                res = self._find_aweme_recursive(data, aweme_id)
+                if res:
+                    return res
+            except Exception:
+                pass
+
+        # 3. Try any JSON block inside script tags containing "aweme_detail" or "itemStruct" or "images"
+        for s_match in re.finditer(r'<script[^>]*>(.*?)</script>', html, re.DOTALL):
+            script_text = s_match.group(1).strip()
+            if "images" in script_text or "aweme_detail" in script_text or "videoInfoRes" in script_text:
+                json_matches = re.finditer(r'(\{[\s\S]*\})', script_text)
+                for jm in json_matches:
+                    try:
+                        cand = json.loads(jm.group(1))
+                        res = self._find_aweme_recursive(cand, aweme_id)
+                        if res:
+                            return res
+                    except Exception:
+                        pass
+        return None
+
+    def _find_aweme_recursive(self, obj: Any, aweme_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        if isinstance(obj, dict):
+            has_id = (not aweme_id) or (str(obj.get("aweme_id", "")) == str(aweme_id)) or (str(obj.get("id", "")) == str(aweme_id))
+            if has_id and ("images" in obj or "video" in obj or "desc" in obj or "music" in obj):
+                if "images" in obj or "video" in obj or "author" in obj:
+                    return obj
+            for k, v in obj.items():
+                res = self._find_aweme_recursive(v, aweme_id)
+                if res:
+                    return res
+        elif isinstance(obj, list):
+            for item in obj:
+                res = self._find_aweme_recursive(item, aweme_id)
+                if res:
+                    return res
         return None
 
     async def _fetch_douyin_data(self, client: httpx.AsyncClient, aweme_id: str) -> Optional[Dict[str, Any]]:
@@ -173,7 +234,7 @@ class DouyinParser(BaseParser):
         except Exception:
             pass
 
-        # API 4: Web Page SSR / Share Note Pages Data Extraction (For 图文 Notes & Slides)
+        # API 4: Share pages SSR extraction
         share_pages = [
             f"https://www.iesdouyin.com/share/note/{aweme_id}/",
             f"https://www.iesdouyin.com/share/slides/{aweme_id}/",
@@ -185,37 +246,9 @@ class DouyinParser(BaseParser):
             try:
                 resp = await client.get(sp, timeout=8.0)
                 if resp.status_code == 200:
-                    html = resp.text
-                    # Check window._ROUTER_DATA
-                    r_match = re.search(r'window\._ROUTER_DATA\s*=\s*(\{.*?\})\s*</script>', html, re.DOTALL)
-                    if r_match:
-                        r_data = json.loads(r_match.group(1))
-                        loader = r_data.get("loaderData", {})
-                        for k, v in loader.items():
-                            if isinstance(v, dict):
-                                if "videoInfoRes" in v:
-                                    items = v["videoInfoRes"].get("item_list", [])
-                                    for it in items:
-                                        if str(it.get("aweme_id")) == str(aweme_id):
-                                            return it
-                                    if items:
-                                        return items[0]
-                                if "itemInfo" in v:
-                                    struct = v["itemInfo"].get("itemStruct")
-                                    if struct:
-                                        return struct
-                                if "itemStruct" in v:
-                                    return v["itemStruct"]
-                    # Check RENDER_DATA
-                    match = re.search(r'<script id="RENDER_DATA" type="application/json">(.+?)</script>', html)
-                    if match:
-                        raw_data = urllib.parse.unquote(match.group(1))
-                        data = json.loads(raw_data)
-                        for key, val in data.items():
-                            if isinstance(val, dict) and "aweme" in val:
-                                detail = val.get("aweme", {}).get("detail")
-                                if detail:
-                                    return detail
+                    extracted = self._extract_aweme_data_from_html(resp.text, aweme_id)
+                    if extracted:
+                        return extracted
             except Exception:
                 pass
 
