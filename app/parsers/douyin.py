@@ -115,7 +115,7 @@ class DouyinParser(BaseParser):
         return None
 
     async def _fetch_douyin_data(self, client: httpx.AsyncClient, aweme_id: str) -> Optional[Dict[str, Any]]:
-        # API 1: Feed Direct API (100% stable, no WAF / cookie required)
+        # API 1: Feed Direct API (Strict aweme_id verification, never fallback to random trending videos)
         feed_api_url = f"https://aweme.snssdk.com/aweme/v1/feed/?aweme_id={aweme_id}&aid=1128"
         feed_headers = {
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
@@ -130,17 +130,16 @@ class DouyinParser(BaseParser):
                     for it in items:
                         if str(it.get("aweme_id")) == str(aweme_id):
                             return it
-                    return items[0]
         except Exception:
             pass
 
-        # API 2: Web detail API (Fallback)
+        # API 2: Web detail API (Supports both Videos and HD Image Albums / Notes)
         web_api_url = f"https://www.douyin.com/aweme/v1/web/aweme/detail/?aweme_id={aweme_id}&aid=6383&version_code=190500&version_name=19.5.0&device_platform=webapp&os=ios"
         desktop_headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
             "Referer": f"https://www.douyin.com/video/{aweme_id}",
             "Accept": "application/json, text/plain, */*",
-            "Cookie": "s_v_web_id=verify_placeholder; passport_csrf_token=placeholder;",
+            "Cookie": "s_v_web_id=verify_placeholder; passport_csrf_token=placeholder; ttwid=1%7Cplaceholder%7Cplaceholder;",
         }
 
         try:
@@ -148,12 +147,14 @@ class DouyinParser(BaseParser):
             if resp.status_code == 200:
                 res_json = resp.json()
                 detail = res_json.get("aweme_detail")
-                if detail:
+                if detail and str(detail.get("aweme_id", "")) == str(aweme_id):
+                    return detail
+                elif detail and not detail.get("aweme_id"):
                     return detail
         except Exception:
             pass
 
-        # API 2: IES Douyin iteminfo API (Fallback)
+        # API 3: IES Douyin iteminfo API
         ies_api_url = f"https://www.iesdouyin.com/web/api/v2/aweme/iteminfo/?item_ids={aweme_id}"
         ies_headers = {
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
@@ -165,15 +166,19 @@ class DouyinParser(BaseParser):
                 res_json = resp.json()
                 item_list = res_json.get("item_list", [])
                 if item_list and len(item_list) > 0:
+                    for it in item_list:
+                        if str(it.get("aweme_id")) == str(aweme_id) or str(it.get("id")) == str(aweme_id):
+                            return it
                     return item_list[0]
         except Exception:
             pass
 
-        # API 3: Web Page SSR / Share Pages Data Extraction (Fallback 2)
+        # API 4: Web Page SSR / Share Note Pages Data Extraction (For 图文 Notes & Slides)
         share_pages = [
-            f"https://www.iesdouyin.com/share/video/{aweme_id}/",
             f"https://www.iesdouyin.com/share/note/{aweme_id}/",
             f"https://www.iesdouyin.com/share/slides/{aweme_id}/",
+            f"https://www.iesdouyin.com/share/video/{aweme_id}/",
+            f"https://www.douyin.com/note/{aweme_id}",
             f"https://www.douyin.com/video/{aweme_id}"
         ]
         for sp in share_pages:
@@ -190,6 +195,9 @@ class DouyinParser(BaseParser):
                             if isinstance(v, dict):
                                 if "videoInfoRes" in v:
                                     items = v["videoInfoRes"].get("item_list", [])
+                                    for it in items:
+                                        if str(it.get("aweme_id")) == str(aweme_id):
+                                            return it
                                     if items:
                                         return items[0]
                                 if "itemInfo" in v:
