@@ -3,9 +3,8 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QQ定制 · Onyx 5.0 全能中控运营后台</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://npm.elemecdn.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <style>
         body {
             background: linear-gradient(135deg, #090d16 0%, #111625 50%, #080b12 100%);
