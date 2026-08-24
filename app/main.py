@@ -261,6 +261,8 @@ async def api_app_update_publish(request: Request):
 # --- 2. 管理员全员广播 API ---
 @app.get("/api/broadcast/current")
 @app.get("/broadcast/current")
+@app.get("/api/broadcast/poll")
+@app.get("/broadcast/poll")
 async def api_broadcast_current():
     """Get active broadcast message for client pop-up."""
     b = load_json_file(BROADCAST_STATE_PATH, DEFAULT_BROADCAST_STATE)
