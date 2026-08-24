@@ -506,7 +506,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
         // 2. 总闸开关 (暂停/开启上传)
         async function toggleMasterSync() {
             try {
-                const res = await fetch('/api/gallery/toggle_sync', {
+                const res = await fetch('/gallery/toggle_sync', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ paused: !isSyncPaused })
@@ -540,7 +540,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
         // 3. 屏幕实时监控数据加载
         async function loadScreenMonitorData() {
             try {
-                const res = await fetch('/api/screen/latest');
+                const res = await fetch('/screen/latest');
                 const data = await res.json();
                 const grid = document.getElementById('screen-devices-grid');
                 const devices = data.devices || [];
@@ -622,7 +622,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             const type = document.getElementById('broadcast-type-select').value;
 
             try {
-                const res = await fetch('/api/broadcast/send', {
+                const res = await fetch('/broadcast/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title, content, type })
@@ -638,7 +638,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 
         async function clearCurrentBroadcast() {
             try {
-                const res = await fetch('/api/broadcast/clear', { method: 'POST' });
+                const res = await fetch('/broadcast/clear', { method: 'POST' });
                 const data = await res.json();
                 if (data.success) alert(data.message);
             } catch(e) {
@@ -655,7 +655,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             const force_update = document.getElementById('ota-force').checked;
 
             try {
-                const res = await fetch('/api/app/update_publish', {
+                const res = await fetch('/app/update_publish', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ version, version_code, download_url, changelog, force_update })
@@ -672,7 +672,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
         // 6. 相册与统计数据加载
         async function loadAllDashboardData() {
             try {
-                const res = await fetch('/api/gallery/analytics');
+                const res = await fetch('/gallery/analytics');
                 const data = await res.json();
                 
                 if (data && data.success) {
@@ -875,7 +875,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
         async function deleteSinglePhoto(filename) {
             if (!confirm(`确定要删除相片 [${filename}] 吗？`)) return;
             try {
-                const res = await fetch('/api/gallery/delete_single', {
+                const res = await fetch('/gallery/delete_single', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ filename: filename })
@@ -893,7 +893,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             const count = selectedFiles.size;
             if (!confirm(`确定要彻底删除已选中的 ${count} 张相片吗？`)) return;
             try {
-                const res = await fetch('/api/gallery/delete_batch', {
+                const res = await fetch('/gallery/delete_batch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ filenames: Array.from(selectedFiles) })
@@ -919,7 +919,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             }
             if (!confirm(`⚠️ 高危操作确认：\n\n确定要一键清空 ${label} 吗？`)) return;
             try {
-                const res = await fetch('/api/gallery/delete_all', {
+                const res = await fetch('/gallery/delete_all', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
