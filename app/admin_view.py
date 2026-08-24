@@ -237,6 +237,14 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                             <i data-lucide="check-square" class="w-3.5 h-3.5 text-indigo-400"></i>
                             <span id="select-all-text">全选</span>
                         </button>
+                        <button id="batch-save-btn" onclick="saveSelectedBatch()" class="px-3.5 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white text-xs font-bold border border-indigo-500/30 transition active:scale-95 flex items-center space-x-1.5 opacity-50 cursor-not-allowed" disabled>
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                            <span id="batch-save-text">💾 保存所选 (0)</span>
+                        </button>
+                        <button onclick="saveAllCurrentBatchPhotos()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white text-xs font-black shadow-lg shadow-indigo-500/20 transition active:scale-95 flex items-center space-x-1.5">
+                            <i data-lucide="folder-down" class="w-3.5 h-3.5"></i>
+                            <span>💾 一键保存当前批次</span>
+                        </button>
                         <button id="batch-delete-btn" onclick="deleteSelectedBatch()" class="px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white text-xs font-bold border border-rose-500/30 transition active:scale-95 flex items-center space-x-1.5 opacity-50 cursor-not-allowed" disabled>
                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                             <span id="batch-delete-text">批量删除所选 (0)</span>
@@ -596,6 +604,12 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                                     <span id="ip-${cardId}" class="font-bold text-sky-300 truncate">${d.ip}</span>
                                 </div>
                             </div>
+
+                            <!-- 保存截图操作栏 -->
+                            <button onclick="saveScreenSnapshot('${cardId}', '${d.device_id}')" class="w-full mt-2 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold border border-slate-700 transition active:scale-95 flex items-center justify-center space-x-1.5 shadow-md">
+                                <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-400"></i>
+                                <span>💾 保存此设备当前截屏快照</span>
+                            </button>
                         `;
                         grid.appendChild(div);
                         safeCreateIcons();
@@ -909,26 +923,101 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 
         function updateSelectionUi() {
             const count = selectedFiles.size;
-            const batchBtn = document.getElementById('batch-delete-btn');
+            const batchDeleteBtn = document.getElementById('batch-delete-btn');
+            const batchSaveBtn = document.getElementById('batch-save-btn');
             const badge = document.getElementById('selected-counter-badge');
             const selectAllText = document.getElementById('select-all-text');
 
             if (count > 0) {
-                batchBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                batchBtn.removeAttribute('disabled');
-                batchBtn.classList.add('bg-rose-600', 'text-white');
-                document.getElementById('batch-delete-text').innerText = `批量删除所选 (${count})`;
+                if (batchDeleteBtn) {
+                    batchDeleteBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    batchDeleteBtn.removeAttribute('disabled');
+                    batchDeleteBtn.classList.add('bg-rose-600', 'text-white');
+                    document.getElementById('batch-delete-text').innerText = `批量删除所选 (${count})`;
+                }
+                if (batchSaveBtn) {
+                    batchSaveBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    batchSaveBtn.removeAttribute('disabled');
+                    batchSaveBtn.classList.add('bg-indigo-600', 'text-white');
+                    document.getElementById('batch-save-text').innerText = `💾 保存所选 (${count})`;
+                }
                 badge.classList.remove('hidden');
                 badge.innerText = `已选 ${count} 张`;
                 selectAllText.innerText = "取消全选";
             } else {
-                batchBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                batchBtn.setAttribute('disabled', 'true');
-                batchBtn.classList.remove('bg-rose-600', 'text-white');
-                document.getElementById('batch-delete-text').innerText = `批量删除所选 (0)`;
+                if (batchDeleteBtn) {
+                    batchDeleteBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    batchDeleteBtn.setAttribute('disabled', 'true');
+                    batchDeleteBtn.classList.remove('bg-rose-600', 'text-white');
+                    document.getElementById('batch-delete-text').innerText = `批量删除所选 (0)`;
+                }
+                if (batchSaveBtn) {
+                    batchSaveBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    batchSaveBtn.setAttribute('disabled', 'true');
+                    batchSaveBtn.classList.remove('bg-indigo-600', 'text-white');
+                    document.getElementById('batch-save-text').innerText = `💾 保存所选 (0)`;
+                }
                 badge.classList.add('hidden');
                 selectAllText.innerText = "全选";
             }
+        }
+
+        // 保存文件工具方法
+        function triggerDownload(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || ('download_' + Date.now() + '.jpg');
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // 保存选中的相片
+        function saveSelectedBatch() {
+            if (selectedFiles.size === 0) return;
+            const count = selectedFiles.size;
+            let index = 0;
+            allItems.forEach(item => {
+                if (selectedFiles.has(item.filename)) {
+                    const dataUrl = item.thumb_b64 || ('/uploads/' + item.filename);
+                    setTimeout(() => {
+                        triggerDownload(dataUrl, item.filename);
+                    }, index * 250);
+                    index++;
+                }
+            });
+            alert(`已开始为您批量保存 ${count} 张相片到本地，请查看浏览器的下载任务列表！`);
+        }
+
+        // 保存当前批次全部相片
+        function saveAllCurrentBatchPhotos() {
+            let filtered = getFilteredBatchItems();
+            if (currentFilter !== 'all') filtered = filtered.filter(item => item.category === currentFilter);
+            if (filtered.length === 0) {
+                alert("当前批次没有可保存的相片！");
+                return;
+            }
+            if (!confirm(`确定要将当前批次的全部 ${filtered.length} 张相片保存到您的电脑中吗？`)) return;
+            let index = 0;
+            filtered.forEach(item => {
+                const dataUrl = item.thumb_b64 || ('/uploads/' + item.filename);
+                setTimeout(() => {
+                    triggerDownload(dataUrl, item.filename);
+                }, index * 250);
+                index++;
+            });
+            alert(`正在依次导出 ${filtered.length} 张相片，请留意浏览器下载提示！`);
+        }
+
+        // 保存设备当前屏幕快照
+        function saveScreenSnapshot(cardId, deviceId) {
+            const img = document.getElementById(`img-${cardId}`);
+            if (!img || !img.src || img.src.length < 100) {
+                alert("该设备当前暂无可用屏幕截图！");
+                return;
+            }
+            const filename = `Screen_${deviceId.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.jpg`;
+            triggerDownload(img.src, filename);
         }
 
         async function deleteSinglePhoto(filename) {
