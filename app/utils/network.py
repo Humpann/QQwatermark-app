@@ -5,8 +5,12 @@ import socket
 import io
 import base64
 from typing import List, Dict, Any
-import qrcode
-from qrcode.main import QRCode
+try:
+    import qrcode
+    from qrcode.main import QRCode
+except ImportError:
+    qrcode = None
+    QRCode = None
 
 def get_lan_ips() -> List[str]:
     """Retrieve all non-loopback IPv4 addresses on the host machine."""
@@ -37,23 +41,30 @@ def get_lan_ips() -> List[str]:
 
 def generate_qr_base64(data: str) -> str:
     """Generate a Base64-encoded PNG image data URI of a QR code."""
-    qr = QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_M,
-        box_size=10,
-        border=3,
-    )
-    qr.add_data(data)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="#1e1b4b", back_color="#ffffff")
-    
-    buffered = io.BytesIO()
-    img.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
-    return f"data:image/png;base64,{img_str}"
+    if not qrcode or not QRCode:
+        return ""
+    try:
+        qr = QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            box_size=10,
+            border=3,
+        )
+        qr.add_data(data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="#4f46e5", back_color="#ffffff")
+        
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+        return f"data:image/png;base64,{img_str}"
+    except Exception:
+        return ""
 
 def print_terminal_qr(data: str):
     """Print an ASCII QR code to the standard terminal output."""
+    if not qrcode or not QRCode:
+        return
     qr = QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
