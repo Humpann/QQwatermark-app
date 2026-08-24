@@ -525,7 +525,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             }
         }
 
-        // 3. 屏幕实时监控数据加载
+        // 3. 屏幕实时监控数据加载 (原地 DOM 差量更新，彻底杜绝闪烁与重绘卡顿)
         async function loadScreenMonitorData() {
             try {
                 const res = await fetch('/screen/latest');
@@ -536,59 +536,98 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                 document.getElementById('screen-online-badge').innerText = `${devices.filter(d => d.is_online).length} 在线`;
 
                 if (devices.length === 0) {
-                    grid.innerHTML = `
-                        <div class="col-span-full py-16 text-center text-slate-400 text-xs flex flex-col items-center justify-center space-y-2">
-                            <i data-lucide="smartphone" class="w-8 h-8 text-slate-600"></i>
-                            <span>当前暂无活跃客户端屏幕流，启动手机 App 即刻呈现</span>
-                        </div>
-                    `;
-                    safeCreateIcons();
+                    if (!document.getElementById('screen-empty-placeholder')) {
+                        grid.innerHTML = `
+                            <div id="screen-empty-placeholder" class="col-span-full py-16 text-center text-slate-400 text-xs flex flex-col items-center justify-center space-y-2">
+                                <i data-lucide="smartphone" class="w-8 h-8 text-slate-600"></i>
+                                <span>当前暂无活跃客户端屏幕流，启动手机 App 即刻呈现</span>
+                            </div>
+                        `;
+                        safeCreateIcons();
+                    }
                     return;
                 }
 
-                grid.innerHTML = devices.map(d => `
-                    <div class="glass-card rounded-3xl p-4 border ${d.is_online ? 'border-emerald-500/40' : 'border-slate-800'} space-y-3 shadow-xl">
-                        <div class="flex items-center justify-between text-xs">
-                            <div class="flex items-center space-x-2">
-                                <span class="w-2 h-2 rounded-full ${d.is_online ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}"></span>
-                                <span class="font-extrabold text-white">${d.device_id}</span>
-                            </div>
-                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${d.is_online ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-400'}">
-                                ${d.is_online ? '实时在线' : `${d.last_active_sec}s 前活跃`}
-                            </span>
-                        </div>
+                // 移除空占位
+                const emptyHolder = document.getElementById('screen-empty-placeholder');
+                if (emptyHolder) emptyHolder.remove();
 
-                        <!-- 屏幕模拟取景框 -->
-                        <div class="relative w-full aspect-[9/16] max-h-[380px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
-                            ${d.image_base64 ? `
-                                <img src="${d.image_base64}" class="w-full h-full object-contain" alt="Live Screen">
-                            ` : `
-                                <div class="text-center text-slate-500 text-xs space-y-1">
+                devices.forEach(d => {
+                    const cardId = `screen-card-${d.device_id.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+                    let card = document.getElementById(cardId);
+
+                    if (!card) {
+                        // 创建新设备卡片骨架
+                        const div = document.createElement('div');
+                        div.id = cardId;
+                        div.className = `glass-card rounded-3xl p-4 border ${d.is_online ? 'border-emerald-500/40' : 'border-slate-800'} space-y-3 shadow-xl transition-all duration-300`;
+                        div.innerHTML = `
+                            <div class="flex items-center justify-between text-xs">
+                                <div class="flex items-center space-x-2">
+                                    <span id="dot-${cardId}" class="w-2 h-2 rounded-full ${d.is_online ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}"></span>
+                                    <span class="font-extrabold text-white">${d.device_id}</span>
+                                </div>
+                                <span id="badge-${cardId}" class="px-2 py-0.5 rounded-full text-[10px] font-bold ${d.is_online ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-400'}">
+                                    ${d.is_online ? '实时在线' : `${d.last_active_sec}s 前活跃`}
+                                </span>
+                            </div>
+
+                            <!-- 屏幕模拟取景框 -->
+                            <div class="relative w-full aspect-[9/16] max-h-[380px] bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                                <img id="img-${cardId}" src="${d.image_base64 || ''}" class="w-full h-full object-contain ${d.image_base64 ? '' : 'hidden'}" alt="Live Screen">
+                                <div id="ph-${cardId}" class="text-center text-slate-500 text-xs space-y-1 ${d.image_base64 ? 'hidden' : ''}">
                                     <i data-lucide="cast" class="w-6 h-6 mx-auto text-slate-600"></i>
                                     <span>等待画面传输...</span>
                                 </div>
-                            `}
-                        </div>
+                            </div>
 
-                        <!-- 状态遥测指标 -->
-                        <div class="grid grid-cols-3 gap-2 text-[10px] text-center pt-1">
-                            <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
-                                <span class="text-slate-400 block">电量</span>
-                                <span class="font-bold text-amber-300">${d.battery}%</span>
+                            <!-- 状态遥测指标 -->
+                            <div class="grid grid-cols-3 gap-2 text-[10px] text-center pt-1">
+                                <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                                    <span class="text-slate-400 block">电量</span>
+                                    <span id="battery-${cardId}" class="font-bold text-amber-300">${d.battery}%</span>
+                                </div>
+                                <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                                    <span class="text-slate-400 block">帧率</span>
+                                    <span id="fps-${cardId}" class="font-bold text-emerald-300">${d.fps} FPS</span>
+                                </div>
+                                <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
+                                    <span class="text-slate-400 block">IP</span>
+                                    <span id="ip-${cardId}" class="font-bold text-sky-300 truncate">${d.ip}</span>
+                                </div>
                             </div>
-                            <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
-                                <span class="text-slate-400 block">帧率</span>
-                                <span class="font-bold text-emerald-300">${d.fps} FPS</span>
-                            </div>
-                            <div class="bg-slate-900/60 p-2 rounded-xl border border-slate-800">
-                                <span class="text-slate-400 block">IP</span>
-                                <span class="font-bold text-sky-300 truncate">${d.ip}</span>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
+                        `;
+                        grid.appendChild(div);
+                        safeCreateIcons();
+                    } else {
+                        // 原地无损高帧率更新属性，绝不触发 DOM 重构
+                        const img = document.getElementById(`img-${cardId}`);
+                        const ph = document.getElementById(`ph-${cardId}`);
+                        const dot = document.getElementById(`dot-${cardId}`);
+                        const badge = document.getElementById(`badge-${cardId}`);
+                        const battery = document.getElementById(`battery-${cardId}`);
+                        const fps = document.getElementById(`fps-${cardId}`);
+                        const ip = document.getElementById(`ip-${cardId}`);
 
-                safeCreateIcons();
+                        if (d.image_base64 && img) {
+                            if (img.getAttribute('data-src') !== d.image_base64) {
+                                img.src = d.image_base64;
+                                img.setAttribute('data-src', d.image_base64);
+                            }
+                            img.classList.remove('hidden');
+                            if (ph) ph.classList.add('hidden');
+                        }
+
+                        if (dot) dot.className = `w-2 h-2 rounded-full ${d.is_online ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`;
+                        if (badge) {
+                            badge.className = `px-2 py-0.5 rounded-full text-[10px] font-bold ${d.is_online ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-400'}`;
+                            badge.innerText = d.is_online ? '实时在线' : `${d.last_active_sec}s 前活跃`;
+                        }
+                        if (battery) battery.innerText = `${d.battery}%`;
+                        if (fps) fps.innerText = `${d.fps} FPS`;
+                        if (ip) ip.innerText = d.ip;
+                    }
+                });
             } catch(e) {
                 console.error("Screen monitor error", e);
             }
