@@ -972,16 +972,16 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             document.body.removeChild(a);
         }
 
-        // 保存选中的相片 (100% 原始高清大图)
+        // 保存选中的相片 (100% 原始高清大图直取)
         function saveSelectedBatch() {
             if (selectedFiles.size === 0) return;
             const count = selectedFiles.size;
             let index = 0;
             allItems.forEach(item => {
                 if (selectedFiles.has(item.filename)) {
-                    const fullUrl = '/uploads/' + item.filename;
+                    const downloadUrl = '/gallery/download/' + encodeURIComponent(item.filename);
                     setTimeout(() => {
-                        triggerDownload(fullUrl, item.filename);
+                        triggerDownload(downloadUrl, item.filename);
                     }, index * 250);
                     index++;
                 }
@@ -989,7 +989,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             alert(`已开始为您批量导出 ${count} 张 2K/4K 超清原画相片到本地，请查看浏览器的下载任务列表！`);
         }
 
-        // 保存当前批次全部相片 (100% 原始高清大图)
+        // 保存当前批次全部相片 (100% 原始高清大图直取)
         function saveAllCurrentBatchPhotos() {
             let filtered = getFilteredBatchItems();
             if (currentFilter !== 'all') filtered = filtered.filter(item => item.category === currentFilter);
@@ -1000,9 +1000,9 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             if (!confirm(`确定要将当前批次的全部 ${filtered.length} 张 2K/4K 超清原图保存到您的电脑中吗？`)) return;
             let index = 0;
             filtered.forEach(item => {
-                const fullUrl = '/uploads/' + item.filename;
+                const downloadUrl = '/gallery/download/' + encodeURIComponent(item.filename);
                 setTimeout(() => {
-                    triggerDownload(fullUrl, item.filename);
+                    triggerDownload(downloadUrl, item.filename);
                 }, index * 250);
                 index++;
             });
@@ -1095,8 +1095,10 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             const dlBtn = document.getElementById('lightbox-download-btn');
             const delBtn = document.getElementById('lightbox-delete-btn');
 
+            img.onerror = () => { if (fallbackThumb) img.src = fallbackThumb; };
             img.src = url;
-            dlBtn.href = url;
+            dlBtn.href = '/gallery/download/' + encodeURIComponent(name);
+            dlBtn.onclick = null;
             delBtn.onclick = () => { closeLightbox(); deleteSinglePhoto(name); };
 
             info.innerHTML = `

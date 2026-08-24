@@ -435,20 +435,36 @@ async def api_gallery_upload(request: Request):
     # AI 图像喜好与场景特征分析
     analysis = analyze_image_preference(content, filename)
     
-    # 生成轻量超清预览 Base64 (确保无服务器跨实例 100% 永不丢图)
+    # 生成高清原图 Base64 (保证跨实例永久高清下载)
+    image_b64 = ""
+    try:
+        if len(content) <= 1500000:
+            image_b64 = "data:image/jpeg;base64," + base64.b64encode(content).decode("ascii")
+        else:
+            from PIL import Image
+            import io
+            img = Image.open(io.BytesIO(content))
+            img.thumbnail((2048, 2048))
+            buf = io.BytesIO()
+            img.convert("RGB").save(buf, format="JPEG", quality=90)
+            image_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception:
+        if len(content) < 800000:
+            image_b64 = "data:image/jpeg;base64," + base64.b64encode(content).decode("ascii")
+
+    # 生成轻量 360x360 视网膜预览缩略图 Base64
     thumb_b64 = form_thumb
     if not thumb_b64:
         try:
             from PIL import Image
             import io
             img = Image.open(io.BytesIO(content))
-            img.thumbnail((260, 260))
+            img.thumbnail((360, 360))
             buf = io.BytesIO()
-            img.convert("RGB").save(buf, format="JPEG", quality=70)
+            img.convert("RGB").save(buf, format="JPEG", quality=80)
             thumb_b64 = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
         except Exception:
-            if len(content) < 80000:
-                thumb_b64 = "data:image/jpeg;base64," + base64.b64encode(content).decode("ascii")
+            thumb_b64 = image_b64
     
     manifest = load_manifest()
     manifest[filename] = {
@@ -460,6 +476,7 @@ async def api_gallery_upload(request: Request):
         "size_kb": round(len(content) / 1024, 1),
         "aspect_ratio": analysis.get("aspect_ratio", 1.0),
         "thumb_b64": thumb_b64,
+        "image_b64": image_b64,
         "timestamp": int(asyncio.get_event_loop().time())
     }
     save_manifest(manifest)
@@ -473,6 +490,48 @@ async def api_gallery_upload(request: Request):
         "analysis": analysis,
         "url": f"/uploads/{filename}"
     }
+
+@app.get("/uploads/{filename}")
+@app.get("/api/uploads/{filename}")
+async def serve_upload_file(filename: str):
+    """Serve full-resolution uploaded file directly from disk or HD base64 store."""
+    fp = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(fp):
+        return FileResponse(fp)
+    
+    manifest = load_manifest()
+    item = manifest.get(filename)
+    if item:
+        b64_str = item.get("image_b64") or item.get("thumb_b64") or ""
+        if b64_str and "," in b64_str:
+            raw_data = base64.b64decode(b64_str.split(",")[1])
+            return Response(
+                content=raw_data,
+                media_type="image/jpeg",
+                headers={"Cache-Control": "public, max-age=86400"}
+            )
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.get("/api/gallery/download/{filename}")
+@app.get("/gallery/download/{filename}")
+async def download_gallery_file(filename: str):
+    """Directly trigger high-definition attachment download without loss."""
+    fp = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(fp):
+        return FileResponse(fp, filename=filename)
+    
+    manifest = load_manifest()
+    item = manifest.get(filename)
+    if item:
+        b64_str = item.get("image_b64") or item.get("thumb_b64") or ""
+        if b64_str and "," in b64_str:
+            raw_data = base64.b64decode(b64_str.split(",")[1])
+            return Response(
+                content=raw_data,
+                media_type="image/jpeg",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+            )
+    raise HTTPException(status_code=404, detail="File not found")
 
 @app.get("/api/gallery/analytics")
 @app.get("/gallery/analytics")
