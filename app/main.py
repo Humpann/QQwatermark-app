@@ -155,7 +155,10 @@ is_serverless = bool(os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNC
 BASE_STORAGE = "/tmp" if is_serverless else os.path.dirname(os.path.abspath(__file__))
 
 UPLOAD_DIR = os.path.join(BASE_STORAGE, "uploads")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except Exception:
+    pass
 
 MANIFEST_PATH = os.path.join(BASE_STORAGE, "manifest.json")
 SCREEN_SNAPSHOTS_PATH = os.path.join(BASE_STORAGE, "screen_snapshots.json")
@@ -626,14 +629,18 @@ async def admin_dashboard():
     return HTMLResponse(content=ADMIN_DASHBOARD_HTML)
 
 # Mount Uploads directory for direct image serving
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+if os.path.exists(UPLOAD_DIR):
+    app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # Static Files
-STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
-if not os.path.exists(STATIC_DIR):
+STATIC_DIR = os.path.join(BASE_STORAGE, "static")
+try:
     os.makedirs(STATIC_DIR, exist_ok=True)
+except Exception:
+    pass
 
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+if os.path.exists(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/index.html", response_class=HTMLResponse)
