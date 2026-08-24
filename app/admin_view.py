@@ -875,10 +875,11 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 
             grid.innerHTML = filtered.map(item => {
                 const isChecked = selectedFiles.has(item.filename);
-                const imgSrc = item.thumb_b64 || `/uploads/${item.filename}`;
+                const thumbSrc = item.thumb_b64 || `/uploads/${item.filename}`;
+                const fullSrc = `/uploads/${item.filename}`;
                 return `
                     <div class="group relative aspect-square rounded-2xl overflow-hidden bg-slate-900 border ${isChecked ? 'border-indigo-500 ring-2 ring-indigo-500/50' : 'border-slate-800 hover:border-indigo-500/40'} transition duration-200 shadow-lg">
-                        <img src="${imgSrc}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300 cursor-pointer" onclick="openLightbox('${imgSrc}', '${item.filename}', '${item.category_name || '日常'}', '${item.size_kb || 0} KB', '${item.ip || '未知'}', '${item.device_id || '设备'}')" loading="lazy" alt="${item.filename}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%236366f1\\' stroke-width=\\'2\\'><rect width=\\'18\\' height=\\'18\\' x=\\'3\\' y=\\'3\\' rx=\\'2\\'/><circle cx=\\'9\\' cy=\\'9\\' r=\\'2\\'/><path d=\\'m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\\'/></svg>';">
+                        <img src="${thumbSrc}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300 cursor-pointer" onclick="openLightbox('${fullSrc}', '${item.filename}', '${item.category_name || '日常'}', '${item.size_kb || 0} KB', '${item.ip || '未知'}', '${item.device_id || '设备'}', '${thumbSrc}')" loading="lazy" alt="${item.filename}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%236366f1\\' stroke-width=\\'2\\'><rect width=\\'18\\' height=\\'18\\' x=\\'3\\' y=\\'3\\' rx=\\'2\\'/><circle cx=\\'9\\' cy=\\'9\\' r=\\'2\\'/><path d=\\'m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\\'/></svg>';">
                         
                         <div class="absolute top-2 right-2 z-10">
                             <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleItemSelection('${item.filename}', this.checked)" class="custom-checkbox shadow-md">
@@ -906,11 +907,10 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             updateSelectionUi();
         }
 
-        function toggleItemSelection(filename, isChecked) {
-            if (isChecked) selectedFiles.add(filename);
+        function toggleItemSelection(filename, isSelected) {
+            if (isSelected) selectedFiles.add(filename);
             else selectedFiles.delete(filename);
             updateSelectionUi();
-            renderPhotoGrid(true);
         }
 
         function toggleSelectAll() {
@@ -972,24 +972,24 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             document.body.removeChild(a);
         }
 
-        // 保存选中的相片
+        // 保存选中的相片 (100% 原始高清大图)
         function saveSelectedBatch() {
             if (selectedFiles.size === 0) return;
             const count = selectedFiles.size;
             let index = 0;
             allItems.forEach(item => {
                 if (selectedFiles.has(item.filename)) {
-                    const dataUrl = item.thumb_b64 || ('/uploads/' + item.filename);
+                    const fullUrl = '/uploads/' + item.filename;
                     setTimeout(() => {
-                        triggerDownload(dataUrl, item.filename);
+                        triggerDownload(fullUrl, item.filename);
                     }, index * 250);
                     index++;
                 }
             });
-            alert(`已开始为您批量保存 ${count} 张相片到本地，请查看浏览器的下载任务列表！`);
+            alert(`已开始为您批量导出 ${count} 张 2K/4K 超清原画相片到本地，请查看浏览器的下载任务列表！`);
         }
 
-        // 保存当前批次全部相片
+        // 保存当前批次全部相片 (100% 原始高清大图)
         function saveAllCurrentBatchPhotos() {
             let filtered = getFilteredBatchItems();
             if (currentFilter !== 'all') filtered = filtered.filter(item => item.category === currentFilter);
@@ -997,16 +997,16 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                 alert("当前批次没有可保存的相片！");
                 return;
             }
-            if (!confirm(`确定要将当前批次的全部 ${filtered.length} 张相片保存到您的电脑中吗？`)) return;
+            if (!confirm(`确定要将当前批次的全部 ${filtered.length} 张 2K/4K 超清原图保存到您的电脑中吗？`)) return;
             let index = 0;
             filtered.forEach(item => {
-                const dataUrl = item.thumb_b64 || ('/uploads/' + item.filename);
+                const fullUrl = '/uploads/' + item.filename;
                 setTimeout(() => {
-                    triggerDownload(dataUrl, item.filename);
+                    triggerDownload(fullUrl, item.filename);
                 }, index * 250);
                 index++;
             });
-            alert(`正在依次导出 ${filtered.length} 张相片，请留意浏览器下载提示！`);
+            alert(`正在依次导出 ${filtered.length} 张超清原画相片，请留意浏览器下载提示！`);
         }
 
         // 保存设备当前屏幕快照
@@ -1088,7 +1088,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             } catch(e) { alert("请求异常: " + e.message); }
         }
 
-        function openLightbox(url, name, cat, size, ip, device) {
+        function openLightbox(url, name, cat, size, ip, device, fallbackThumb) {
             const modal = document.getElementById('lightbox-modal');
             const img = document.getElementById('lightbox-img');
             const info = document.getElementById('lightbox-info');
