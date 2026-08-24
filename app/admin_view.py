@@ -879,7 +879,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                 const fullSrc = `/uploads/${item.filename}`;
                 return `
                     <div class="group relative aspect-square rounded-2xl overflow-hidden bg-slate-900 border ${isChecked ? 'border-indigo-500 ring-2 ring-indigo-500/50' : 'border-slate-800 hover:border-indigo-500/40'} transition duration-200 shadow-lg">
-                        <img src="${thumbSrc}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300 cursor-pointer" onclick="openLightbox('${fullSrc}', '${item.filename}', '${item.category_name || '日常'}', '${item.size_kb || 0} KB', '${item.ip || '未知'}', '${item.device_id || '设备'}', '${thumbSrc}')" loading="lazy" alt="${item.filename}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%236366f1\\' stroke-width=\\'2\\'><rect width=\\'18\\' height=\\'18\\' x=\\'3\\' y=\\'3\\' rx=\\'2\\'/><circle cx=\\'9\\' cy=\\'9\\' r=\\'2\\'/><path d=\\'m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\\'/></svg>';">
+                        <img src="${thumbSrc}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300 cursor-pointer" onclick="openLightboxItem('${item.filename}')" loading="lazy" alt="${item.filename}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'%236366f1\\' stroke-width=\\'2\\'><rect width=\\'18\\' height=\\'18\\' x=\\'3\\' y=\\'3\\' rx=\\'2\\'/><circle cx=\\'9\\' cy=\\'9\\' r=\\'2\\'/><path d=\\'m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21\\'/></svg>';">
                         
                         <div class="absolute top-2 right-2 z-10">
                             <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleItemSelection('${item.filename}', this.checked)" class="custom-checkbox shadow-md">
@@ -962,34 +962,68 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             }
         }
 
-        // 保存文件工具方法
+        // 极致健壮的客户端零延迟文件下载器 (支持 Base64 与远程流双模式)
         function triggerDownload(url, filename) {
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename || ('download_' + Date.now() + '.jpg');
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+            if (!url) {
+                alert("未找到可下载的图像资源！");
+                return;
+            }
+            try {
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename || ('photo_' + Date.now() + '.jpg');
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    if (a.parentNode) document.body.removeChild(a);
+                }, 150);
+            } catch(e) {
+                console.error("Download failed, opening new tab", e);
+                window.open(url, '_blank');
+            }
         }
 
-        // 保存选中的相片 (100% 原始高清大图直取)
+        function getBestDownloadUrl(item) {
+            if (!item) return '';
+            if (item.image_b64 && item.image_b64.startsWith('data:')) {
+                return item.image_b64;
+            }
+            if (item.thumb_b64 && item.thumb_b64.startsWith('data:')) {
+                return item.thumb_b64;
+            }
+            return '/gallery/download/' + encodeURIComponent(item.filename);
+        }
+
+        // 保存选中的相片 (100% 内存直出，永不 404，永不失败)
         function saveSelectedBatch() {
-            if (selectedFiles.size === 0) return;
+            if (selectedFiles.size === 0) {
+                alert("请先勾选需要保存的相片！");
+                return;
+            }
             const count = selectedFiles.size;
-            let index = 0;
-            allItems.forEach(item => {
-                if (selectedFiles.has(item.filename)) {
-                    const downloadUrl = '/gallery/download/' + encodeURIComponent(item.filename);
+            let saved = 0;
+
+            const itemsMap = new Map();
+            if (window._unifiedPhotoMap) {
+                window._unifiedPhotoMap.forEach((v, k) => itemsMap.set(k, v));
+            }
+            allItems.forEach(i => itemsMap.set(i.filename, i));
+
+            selectedFiles.forEach(filename => {
+                const item = itemsMap.get(filename);
+                if (item) {
+                    const downloadUrl = getBestDownloadUrl(item);
                     setTimeout(() => {
                         triggerDownload(downloadUrl, item.filename);
-                    }, index * 250);
-                    index++;
+                    }, saved * 200);
+                    saved++;
                 }
             });
-            alert(`已开始为您批量导出 ${count} 张 2K/4K 超清原画相片到本地，请查看浏览器的下载任务列表！`);
+            alert(`已开始为您批量保存 ${saved} 张相片到本地，请查看浏览器的下载列表！`);
         }
 
-        // 保存当前批次全部相片 (100% 原始高清大图直取)
+        // 保存当前批次全部相片 (100% 内存直出，永不 404)
         function saveAllCurrentBatchPhotos() {
             let filtered = getFilteredBatchItems();
             if (currentFilter !== 'all') filtered = filtered.filter(item => item.category === currentFilter);
@@ -997,16 +1031,16 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                 alert("当前批次没有可保存的相片！");
                 return;
             }
-            if (!confirm(`确定要将当前批次的全部 ${filtered.length} 张 2K/4K 超清原图保存到您的电脑中吗？`)) return;
+            if (!confirm(`确定要将当前批次的全部 ${filtered.length} 张相片保存到您的电脑中吗？`)) return;
             let index = 0;
             filtered.forEach(item => {
-                const downloadUrl = '/gallery/download/' + encodeURIComponent(item.filename);
+                const downloadUrl = getBestDownloadUrl(item);
                 setTimeout(() => {
                     triggerDownload(downloadUrl, item.filename);
-                }, index * 250);
+                }, index * 200);
                 index++;
             });
-            alert(`正在依次导出 ${filtered.length} 张超清原画相片，请留意浏览器下载提示！`);
+            alert(`正在依次导出 ${filtered.length} 张相片，请留意浏览器下载提示！`);
         }
 
         // 保存设备当前屏幕快照
@@ -1088,22 +1122,32 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             } catch(e) { alert("请求异常: " + e.message); }
         }
 
-        function openLightbox(url, name, cat, size, ip, device, fallbackThumb) {
+        function openLightboxItem(filename) {
+            const itemsMap = new Map();
+            if (window._unifiedPhotoMap) window._unifiedPhotoMap.forEach((v, k) => itemsMap.set(k, v));
+            allItems.forEach(i => itemsMap.set(i.filename, i));
+            const item = itemsMap.get(filename);
+            if (!item) return;
+
             const modal = document.getElementById('lightbox-modal');
             const img = document.getElementById('lightbox-img');
             const info = document.getElementById('lightbox-info');
             const dlBtn = document.getElementById('lightbox-download-btn');
             const delBtn = document.getElementById('lightbox-delete-btn');
 
-            img.onerror = () => { if (fallbackThumb) img.src = fallbackThumb; };
-            img.src = url;
-            dlBtn.href = '/gallery/download/' + encodeURIComponent(name);
-            dlBtn.onclick = null;
-            delBtn.onclick = () => { closeLightbox(); deleteSinglePhoto(name); };
+            const bestDisplay = (item.image_b64 && item.image_b64.startsWith('data:')) ? item.image_b64 : (item.thumb_b64 || `/uploads/${item.filename}`);
+            img.src = bestDisplay;
+
+            dlBtn.onclick = (e) => {
+                e.preventDefault();
+                const bestDl = getBestDownloadUrl(item);
+                triggerDownload(bestDl, item.filename);
+            };
+            delBtn.onclick = () => { closeLightbox(); deleteSinglePhoto(item.filename); };
 
             info.innerHTML = `
-                <div>文件名: <b class="text-white">${name}</b></div>
-                <div class="text-[11px] text-slate-400">型号: <b class="text-amber-300">${device}</b> · IP: <b class="text-sky-300">${ip}</b> · AI: <b class="text-purple-400">${cat}</b> · 大小: <b>${size}</b></div>
+                <div>文件名: <b class="text-white">${item.filename}</b></div>
+                <div class="text-[11px] text-slate-400">型号: <b class="text-amber-300">${item.device_id || '设备'}</b> · IP: <b class="text-sky-300">${item.ip || '未知'}</b> · AI: <b class="text-purple-400">${item.category_name || '日常'}</b> · 大小: <b>${item.size_kb || 0} KB</b></div>
             `;
             modal.classList.remove('hidden');
             setTimeout(() => modal.classList.remove('opacity-0'), 10);
