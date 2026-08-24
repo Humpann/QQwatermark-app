@@ -427,7 +427,7 @@ async def api_gallery_upload(request: Request):
     with open(safe_path, "wb") as f:
         f.write(content)
         
-    form_thumb = form.get("thumb_b64", "")
+    form_thumb = form.get("thumb_b64") or ""
     
     # AI 图像喜好与场景特征分析
     analysis = analyze_image_preference(content, filename)
