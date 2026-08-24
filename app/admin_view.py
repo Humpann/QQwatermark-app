@@ -4,7 +4,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://npm.elemecdn.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     <style>
         body {
             background: linear-gradient(135deg, #090d16 0%, #111625 50%, #080b12 100%);
@@ -483,23 +483,12 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
         let selectedFiles = new Set();
         let isSyncPaused = false;
 
-        // 1. Tab 切换
-        function switchTab(tab) {
-            const tabs = ['gallery', 'screen', 'broadcast', 'ota'];
-            tabs.forEach(t => {
-                const btn = document.getElementById(`tab-btn-${t}`);
-                const view = document.getElementById(`tab-view-${t}`);
-                if (t === tab) {
-                    btn.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
-                    btn.classList.remove('text-slate-300', 'hover:bg-slate-800/60');
-                    view.classList.remove('hidden');
-                } else {
-                    btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
-                    btn.classList.add('text-slate-300', 'hover:bg-slate-800/60');
-                    view.classList.add('hidden');
+        function safeCreateIcons() {
+            try {
+                if (window.lucide && typeof window.lucide.createIcons === 'function') {
+                    window.safeCreateIcons();
                 }
-            });
-            if (tab === 'screen') loadScreenMonitorData();
+            } catch(e) {}
         }
 
         // 2. 总闸开关 (暂停/开启上传)
@@ -553,7 +542,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                             <span>当前暂无活跃客户端屏幕流，启动手机 App 即刻呈现</span>
                         </div>
                     `;
-                    lucide.createIcons();
+                    safeCreateIcons();
                     return;
                 }
 
@@ -599,7 +588,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                     </div>
                 `).join('');
 
-                lucide.createIcons();
+                safeCreateIcons();
             } catch(e) {
                 console.error("Screen monitor error", e);
             }
@@ -752,7 +741,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             } catch(e) {
                 console.error('Failed to load data', e);
             }
-            lucide.createIcons();
+            safeCreateIcons();
         }
 
         function setBatchFilter(type, value) {
@@ -797,7 +786,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                         <span>当前批次/分类下暂无相片数据</span>
                     </div>
                 `;
-                lucide.createIcons();
+                safeCreateIcons();
                 return;
             }
 
@@ -829,7 +818,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                 `;
             }).join('');
 
-            lucide.createIcons();
+            safeCreateIcons();
             updateSelectionUi();
         }
 
@@ -949,7 +938,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             `;
             modal.classList.remove('hidden');
             setTimeout(() => modal.classList.remove('opacity-0'), 10);
-            lucide.createIcons();
+            safeCreateIcons();
         }
 
         function closeLightbox() {
@@ -1052,7 +1041,7 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
         // 页面启动自检
         document.addEventListener("DOMContentLoaded", () => {
             checkAuthOnLoad();
-            lucide.createIcons();
+            safeCreateIcons();
         });
         checkAuthOnLoad();
     </script>
