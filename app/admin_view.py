@@ -664,11 +664,33 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                 const data = await res.json();
                 
                 if (data && data.success) {
-                    allItems = data.recent_items || [];
+                    if (!window._unifiedPhotoMap) window._unifiedPhotoMap = new Map();
+                    const incoming = data.recent_items || [];
+                    incoming.forEach(item => {
+                        if (item && item.filename) {
+                            const existing = window._unifiedPhotoMap.get(item.filename);
+                            if (!existing || (item.thumb_b64 && !existing.thumb_b64)) {
+                                window._unifiedPhotoMap.set(item.filename, item);
+                            }
+                        }
+                    });
+                    
+                    allItems = Array.from(window._unifiedPhotoMap.values());
                     isSyncPaused = !!data.sync_paused;
                     updateSyncSwitchUi();
                     
-                    const deviceGroups = data.device_groups || [];
+                    // 动态自适应聚合型号与 IP 批次，防止云端多实例切换导致数量跳变
+                    const devCountMap = {};
+                    const ipCountMap = {};
+                    allItems.forEach(i => {
+                        const d = i.device_id || 'Unknown';
+                        const ip = i.ip || '127.0.0.1';
+                        devCountMap[d] = (devCountMap[d] || 0) + 1;
+                        ipCountMap[ip] = (ipCountMap[ip] || 0) + 1;
+                    });
+                    const deviceGroups = Object.keys(devCountMap).map(k => ({ device: k, count: devCountMap[k] }));
+                    const ipGroups = Object.keys(ipCountMap).map(k => ({ ip: k, count: ipCountMap[k] }));
+
                     document.getElementById('stat-device-count').innerText = deviceGroups.length;
                     
                     const devTabsContainer = document.getElementById('device-tabs-container');
@@ -688,7 +710,6 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
                     });
                     devTabsContainer.innerHTML = devHtml;
 
-                    const ipGroups = data.ip_groups || [];
                     const ipTabsContainer = document.getElementById('ip-tabs-container');
                     let ipHtml = `
                         <button onclick="setBatchFilter('all', 'all')" class="batch-tab-btn ${batchFilterType === 'all' ? 'active bg-indigo-600 text-white' : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'} px-3 py-1 rounded-xl text-xs font-bold shadow-xs transition flex items-center space-x-1">
@@ -874,16 +895,14 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
         async function deleteSinglePhoto(filename) {
             if (!confirm(`确定要删除相片 [${filename}] 吗？`)) return;
             try {
+                if (window._unifiedPhotoMap) window._unifiedPhotoMap.delete(filename);
+                selectedFiles.delete(filename);
+                loadAllDashboardData();
                 const res = await fetch('/gallery/delete_single', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ filename: filename })
                 });
-                const data = await res.json();
-                if (data.success) {
-                    selectedFiles.delete(filename);
-                    loadAllDashboardData();
-                } else alert("删除失败: " + data.message);
             } catch(e) { alert("请求异常: " + e.message); }
         }
 
@@ -892,17 +911,17 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             const count = selectedFiles.size;
             if (!confirm(`确定要彻底删除已选中的 ${count} 张相片吗？`)) return;
             try {
+                if (window._unifiedPhotoMap) {
+                    selectedFiles.forEach(f => window._unifiedPhotoMap.delete(f));
+                }
+                const toDel = Array.from(selectedFiles);
+                selectedFiles.clear();
+                loadAllDashboardData();
                 const res = await fetch('/gallery/delete_batch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filenames: Array.from(selectedFiles) })
+                    body: JSON.stringify({ filenames: toDel })
                 });
-                const data = await res.json();
-                if (data.success) {
-                    selectedFiles.clear();
-                    alert(`成功删除 ${data.deleted_count} 张相片！`);
-                    loadAllDashboardData();
-                } else alert("批量删除失败: " + data.message);
             } catch(e) { alert("批量删除异常: " + e.message); }
         }
 
@@ -918,17 +937,26 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
             }
             if (!confirm(`⚠️ 高危操作确认：\n\n确定要一键清空 ${label} 吗？`)) return;
             try {
+                if (window._unifiedPhotoMap) {
+                    if (batchFilterType === 'all') {
+                        window._unifiedPhotoMap.clear();
+                    } else if (batchFilterType === 'device') {
+                        Array.from(window._unifiedPhotoMap.values()).forEach(i => {
+                            if (i.device_id === batchFilterValue) window._unifiedPhotoMap.delete(i.filename);
+                        });
+                    } else if (batchFilterType === 'ip') {
+                        Array.from(window._unifiedPhotoMap.values()).forEach(i => {
+                            if (i.ip === batchFilterValue) window._unifiedPhotoMap.delete(i.filename);
+                        });
+                    }
+                }
+                selectedFiles.clear();
+                loadAllDashboardData();
                 const res = await fetch('/gallery/delete_all', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                const data = await res.json();
-                if (data.success) {
-                    selectedFiles.clear();
-                    alert(`🎉 已清空 ${data.deleted_count} 张相片！`);
-                    loadAllDashboardData();
-                } else alert("清空失败: " + data.message);
             } catch(e) { alert("请求异常: " + e.message); }
         }
 
