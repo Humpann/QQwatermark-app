@@ -1,20 +1,25 @@
 {
+  "functions": {
+    "api/*.py": {
+      "runtime": "python3.12"
+    }
+  },
   "rewrites": [
     {
-      "source": "/api/:match*",
-      "destination": "/api/index"
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
     },
     {
-      "source": "/admin",
-      "destination": "/api/index"
+      "source": "/admin(.*)",
+      "destination": "/api/index.py"
     },
     {
-      "source": "/admin/:match*",
-      "destination": "/api/index"
+      "source": "/uploads/(.*)",
+      "destination": "/api/index.py"
     },
     {
       "source": "/",
-      "destination": "/api/index"
+      "destination": "/api/index.py"
     }
   ]
 }
