@@ -1,13 +1,44 @@
 {
-  "functions": {
-    "api/*.py": {
-      "runtime": "python3.12"
-    }
-  },
   "rewrites": [
     {
-      "source": "/:path*",
-      "destination": "/api/index.py"
+      "source": "/api/:match*",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/parse",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/batch-parse",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/broadcast/:match*",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/gallery/:match*",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/app/:match*",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/screen/:match*",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/device/:match*",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/admin/metrics",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
     }
   ]
 }
