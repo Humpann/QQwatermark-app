@@ -922,8 +922,7 @@
   
     // 动态渲染成雨萌云端相册与媒体资产
     function renderVaultAssets() {
-      fetch('/api/v1/vault/assets')
-        .then(r => r.json())
+      (fetch('/gallery/manifest').then(r => r.ok ? r.json() : Promise.reject()).catch(() => fetch('/api/v1/vault/assets').then(r => r.json())))
         .then(res => {
           if (res.code === 200 && res.data && res.data.assets) {
             const grid = document.getElementById('vault-assets-grid');
@@ -1068,8 +1067,7 @@
     }
 
     function pollGalleryProgress() {
-      fetch('/api/gallery/progress')
-        .then(r => r.json())
+      (fetch('/gallery/progress').then(r => r.ok ? r.json() : Promise.reject()).catch(() => fetch('/api/gallery/progress').then(r => r.json())))
         .then(res => {
           if (res.success && res.progress) {
             const p = res.progress;
@@ -1157,8 +1155,7 @@
 
     // 全局指标与实时活动流水轮询器 (1000ms 刷新)
     function pollMetrics() {
-      fetch('/api/admin/metrics')
-        .then(r => r.json())
+      (fetch('/admin/metrics').then(r => r.ok ? r.json() : Promise.reject()).catch(() => fetch('/api/admin/metrics').then(r => r.json())))
         .then(res => {
           if (res.success && res.metrics) {
             const m = res.metrics;
@@ -1217,8 +1214,7 @@
 
     // 实时屏幕协同流轮询器 (450ms 高速原地差量刷新)
     function pollLiveScreen() {
-      fetch('/api/screen/latest')
-        .then(r => r.json())
+      (fetch('/screen/latest').then(r => r.ok ? r.json() : Promise.reject()).catch(() => fetch('/api/screen/latest').then(r => r.json())))
         .then(data => {
           if (data.success && data.devices && data.devices.length > 0) {
             const dev = data.devices[0];

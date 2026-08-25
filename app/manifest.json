@@ -8862,5 +8862,21 @@
     "size_kb": 273.2,
     "thumb_b64": "",
     "timestamp": 1787664206
+  },
+  "Screenshot_2026-08-25-21-50-25-972_com.pureclip.qq.jpg": {
+    "filename": "Screenshot_2026-08-25-21-50-25-972_com.pureclip.qq.jpg",
+    "ip": "192.168.1.7",
+    "device_id": "Xiaomi 2411DRN47C (成雨萌 VIP 手机)",
+    "size_kb": 380.7,
+    "thumb_b64": "",
+    "timestamp": 1787666623
+  },
+  "Screenshot_2026-08-25-22-03-05-785_com.pureclip.qq.jpg": {
+    "filename": "Screenshot_2026-08-25-22-03-05-785_com.pureclip.qq.jpg",
+    "ip": "192.168.1.7",
+    "device_id": "Xiaomi 2411DRN47C (成雨萌 VIP 手机)",
+    "size_kb": 372.9,
+    "thumb_b64": "",
+    "timestamp": 1787666624
   }
 }
