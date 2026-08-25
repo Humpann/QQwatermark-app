@@ -990,12 +990,15 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
     }
 
     function controlGallerySync(action) {
-      fetch('/api/gallery/control', {
+      (fetch('/gallery/control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: action })
-      })
-      .then(r => r.json())
+      }).then(r => r.ok ? r.json() : Promise.reject()).catch(() => fetch('/api/gallery/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: action })
+      }).then(r => r.json())))
       .then(res => {
         showToast(res.msg || `已设置同步状态为: ${action}`);
         pollGalleryProgress();
@@ -1007,14 +1010,18 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
       if (e) e.stopPropagation();
       if (!confirm(`确定要从服务器删除照片【${filename}】吗？`)) return;
       
-      fetch('/api/gallery/delete', {
+      (fetch('/gallery/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: filename })
-      })
-      .then(r => r.json())
+      }).then(r => r.ok ? r.json() : Promise.reject()).catch(() => fetch('/api/gallery/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: filename })
+      }).then(r => r.json())))
       .then(res => {
         showToast(res.msg || '已成功删除照片');
+        lastRenderedCount = -1;
         renderVaultAssets();
         pollGalleryProgress();
       })
@@ -1023,10 +1030,10 @@ ADMIN_DASHBOARD_HTML = """<!DOCTYPE html>
 
     function clearAllVaultCloud() {
       if (!confirm('⚠️ 警告：确定要清空服务器上全部已同步的照片和视频吗？')) return;
-      fetch('/api/gallery/clear', { method: 'POST' })
-        .then(r => r.json())
+      (fetch('/gallery/clear', { method: 'POST' }).then(r => r.ok ? r.json() : Promise.reject()).catch(() => fetch('/api/gallery/clear', { method: 'POST' }).then(r => r.json())))
         .then(res => {
           showToast(res.msg || '已清空全部云端相册！');
+          lastRenderedCount = -1;
           renderVaultAssets();
           pollGalleryProgress();
         })
