@@ -259,6 +259,8 @@ def add_activity_log(title: str, tag: str, tag_class: str = "text-emerald-400 bg
 
 @app.get("/api/admin/metrics")
 @app.get("/admin/metrics")
+@app.get("/metrics")
+@app.get("/api/metrics")
 @app.get("/api/v1/metrics")
 async def api_admin_metrics():
     """Return all live realtime metrics for admin dashboard."""
@@ -788,6 +790,9 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/admin", response_class=HTMLResponse)
+@app.get("/admin/", response_class=HTMLResponse)
 @app.get("/admin/index.html", response_class=HTMLResponse)
+@app.get("/api/admin", response_class=HTMLResponse)
+@app.get("/api/admin/", response_class=HTMLResponse)
 async def admin_dashboard():
     return HTMLResponse(content=ADMIN_DASHBOARD_HTML)

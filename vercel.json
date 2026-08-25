@@ -10,15 +10,7 @@
       "destination": "/api/index.py"
     },
     {
-      "source": "/admin(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/uploads/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/",
+      "source": "/(.*)",
       "destination": "/api/index.py"
     }
   ]
