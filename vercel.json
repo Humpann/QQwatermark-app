@@ -1,20 +1,13 @@
 {
+  "functions": {
+    "api/*.py": {
+      "runtime": "python3.12"
+    }
+  },
   "rewrites": [
     {
-      "source": "/api/:match*",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/admin:match*",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/uploads/:match*",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/:match*",
-      "destination": "/api/index"
+      "source": "/(.*)",
+      "destination": "/api/index.py"
     }
   ]
 }
