@@ -23,13 +23,28 @@ class VercelPathFixMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             headers = dict(scope.get("headers", []))
-            matched_path = headers.get(b"x-matched-path", b"").decode("latin1") or headers.get(b"x-vercel-matched-path", b"").decode("latin1")
-            if matched_path:
-                scope["path"] = matched_path
-            elif scope.get("path", "").startswith("/api/index"):
-                # Strip /api/index prefix
-                sub = scope.get("path", "")[len("/api/index"):]
-                scope["path"] = sub if sub else "/"
+            # Check all possible client request path headers
+            req_path = (
+                headers.get(b"x-forwarded-uri", b"").decode("latin1")
+                or headers.get(b"x-invoke-path", b"").decode("latin1")
+                or headers.get(b"x-rewrite-url", b"").decode("latin1")
+                or headers.get(b"x-original-url", b"").decode("latin1")
+            )
+            if not req_path:
+                matched = headers.get(b"x-matched-path", b"").decode("latin1")
+                if matched and not matched.startswith("/api/index"):
+                    req_path = matched
+
+            if req_path:
+                # Remove query string if present in path
+                req_path = req_path.split("?")[0]
+                scope["path"] = req_path
+            else:
+                p = scope.get("path", "")
+                if p.startswith("/api/index"):
+                    sub = p[len("/api/index"):]
+                    scope["path"] = sub if sub else "/"
+                    
         await self.asgi_app(scope, receive, send)
 
 handler = VercelPathFixMiddleware(fastapi_app)
