@@ -1,0 +1,11 @@
+{
+  "latest_version": "v4.5 VIP 旗舰终极版",
+  "version_code": 450,
+  "download_url": "/api/app/download/latest.apk",
+  "package_url": "/api/app/download/latest.apk",
+  "package_size_mb": 7.4,
+  "has_update": false,
+  "changelog": "⚡ 接入 4K/8K 满血无损原画流式传输管道\n🛡️ 华为/鸿蒙与全机型 6 大特权矩阵深度适配\n🔍 增量秒传防重与相机拍照毫秒级自动监听\n🚀 接入云端 OTA 静默极速在线热更新",
+  "force_update": false,
+  "publish_time": "2026-08-25 21:30"
+}

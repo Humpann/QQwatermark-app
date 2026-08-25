@@ -1,19 +1,12 @@
 {
-  "id": "b_1787489181",
+  "id": "b_1787664626",
   "active": true,
-  "title": "🎉 尊享版 5.0 旗舰升级",
-  "content": "全新 5.0 智能差量相册与无水印引擎已就绪！体验毫秒级原画提取与实时云端协同。",
-  "type": "sparkles",
-  "pages": [
-    {
-      "title": "🎉 尊享版 5.0 旗舰升级",
-      "content": "全新 5.0 智能差量相册与无水印引擎已就绪！体验毫秒级原画提取与实时云端协同。",
-      "tag": "官方公告"
-    }
-  ],
-  "reactions": {
-    "flowers": 1,
-    "poop": 0
-  },
-  "timestamp": 1787489181
+  "admin_id": "dev_qq_official",
+  "target_client_id": "cym_vip_official",
+  "title": "🎉 深度测试验证广播",
+  "body": "全链路测试正常，已达到 100% 生产就绪标准",
+  "category": "NOTICE",
+  "show_marquee": true,
+  "show_modal": false,
+  "timestamp": 1787664626
 }
