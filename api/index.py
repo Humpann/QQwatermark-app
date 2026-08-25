@@ -16,6 +16,22 @@ except Exception as e:
     async def catch_all(full_path: str):
         return PlainTextResponse(f"FastAPI Import Error on Vercel:\n\n{err_msg}", status_code=500)
 
+from fastapi.responses import JSONResponse
+from fastapi import Request
+
+@fastapi_app.middleware("http")
+async def debug_headers_middleware(request: Request, call_next):
+    if request.url.path in ["/debug", "/api/debug", "/api/index/debug", "/api/index"]:
+        return JSONResponse({
+            "url": str(request.url),
+            "path": request.url.path,
+            "headers": dict(request.headers),
+            "scope_path": request.scope.get("path"),
+            "scope_raw_path": str(request.scope.get("raw_path")),
+            "scope_root_path": request.scope.get("root_path")
+        })
+    return await call_next(request)
+
 class VercelPathFixMiddleware:
     def __init__(self, asgi_app):
         self.asgi_app = asgi_app
@@ -23,28 +39,27 @@ class VercelPathFixMiddleware:
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
             headers = dict(scope.get("headers", []))
-            # Check all possible client request path headers
-            req_path = (
-                headers.get(b"x-forwarded-uri", b"").decode("latin1")
-                or headers.get(b"x-invoke-path", b"").decode("latin1")
-                or headers.get(b"x-rewrite-url", b"").decode("latin1")
-                or headers.get(b"x-original-url", b"").decode("latin1")
-            )
-            if not req_path:
-                matched = headers.get(b"x-matched-path", b"").decode("latin1")
-                if matched and not matched.startswith("/api/index"):
-                    req_path = matched
-
-            if req_path:
-                # Remove query string if present in path
-                req_path = req_path.split("?")[0]
-                scope["path"] = req_path
-            else:
-                p = scope.get("path", "")
-                if p.startswith("/api/index"):
-                    sub = p[len("/api/index"):]
-                    scope["path"] = sub if sub else "/"
-                    
+            raw_path = scope.get("path", "")
+            
+            # Extract actual URL path from Vercel headers
+            forwarded = headers.get(b"x-forwarded-uri", b"").decode("latin1")
+            matched = headers.get(b"x-matched-path", b"").decode("latin1")
+            invoke = headers.get(b"x-invoke-path", b"").decode("latin1")
+            
+            target = None
+            if forwarded:
+                target = forwarded.split("?")[0]
+            elif invoke:
+                target = invoke.split("?")[0]
+            elif matched and not matched.startswith("/api/index"):
+                target = matched.split("?")[0]
+            elif raw_path.startswith("/api/index"):
+                sub = raw_path[len("/api/index"):]
+                target = sub if sub else "/"
+                
+            if target:
+                scope["path"] = target
+                
         await self.asgi_app(scope, receive, send)
 
 handler = VercelPathFixMiddleware(fastapi_app)
