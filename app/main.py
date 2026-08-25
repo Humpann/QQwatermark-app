@@ -217,6 +217,7 @@ async def api_broadcast_poll():
 # 3. 手机客户端设备控制与真机唤醒 (Device Wakeup & Screenshot)
 # =========================================================================
 @app.post("/api/device/wake")
+@app.post("/device/wake")
 async def api_device_wake():
     try:
         subprocess.Popen([ADB_PATH, "shell", "am", "start", "-n", "com.pureclip.qq/com.omnimedia.watermark.MainActivity"])
@@ -257,6 +258,8 @@ def add_activity_log(title: str, tag: str, tag_class: str = "text-emerald-400 bg
     ACTIVITY_LOGS = ACTIVITY_LOGS[:30]
 
 @app.get("/api/admin/metrics")
+@app.get("/admin/metrics")
+@app.get("/api/v1/metrics")
 async def api_admin_metrics():
     """Return all live realtime metrics for admin dashboard."""
     manifest = load_manifest()
@@ -416,6 +419,7 @@ SYNC_PROGRESS = {
 }
 
 @app.post("/api/gallery/progress")
+@app.post("/gallery/progress")
 async def api_gallery_report_progress(request: Request):
     """Receive realtime progress report from client."""
     global SYNC_PROGRESS
@@ -441,6 +445,7 @@ async def api_gallery_report_progress(request: Request):
         return {"code": 500, "success": False, "msg": str(e)}
 
 @app.get("/api/gallery/progress")
+@app.get("/gallery/progress")
 async def api_gallery_get_progress():
     """Admin dashboard fetches current sync progress."""
     manifest = load_manifest()
@@ -464,6 +469,7 @@ async def api_gallery_get_progress():
     }
 
 @app.get("/api/gallery/synced_keys")
+@app.get("/gallery/synced_keys")
 async def api_gallery_synced_keys():
     """Returns list of all already synced filenames and keys for client-side deduplication."""
     manifest = load_manifest()
@@ -475,6 +481,7 @@ async def api_gallery_synced_keys():
     }
 
 @app.post("/api/gallery/control")
+@app.post("/gallery/control")
 async def api_gallery_control(request: Request):
     """Admin sets sync control (start, pause, resume, stop)."""
     global SYNC_PROGRESS
@@ -496,6 +503,7 @@ async def api_gallery_control(request: Request):
 
 @app.delete("/api/gallery/delete/{filename:path}")
 @app.post("/api/gallery/delete")
+@app.post("/gallery/delete")
 async def api_gallery_delete(filename: str = None, request: Request = None):
     """Delete a single photo asset from disk and manifest."""
     try:
@@ -524,6 +532,7 @@ async def api_gallery_delete(filename: str = None, request: Request = None):
         return {"code": 500, "success": False, "msg": str(e)}
 
 @app.post("/api/gallery/clear")
+@app.post("/gallery/clear")
 async def api_gallery_clear():
     """Clear all uploaded gallery assets from disk and manifest."""
     try:
@@ -543,6 +552,7 @@ async def api_gallery_clear():
         return {"code": 500, "success": False, "msg": str(e)}
 
 @app.get("/api/gallery/download/zip")
+@app.get("/gallery/download/zip")
 async def api_gallery_download_zip():
     """Package all assets into a zip file on the fly and return."""
     import zipfile
@@ -570,6 +580,8 @@ async def api_gallery_download_zip():
 # =========================================================================
 @app.get("/api/v1/vault/assets")
 @app.get("/api/gallery/manifest")
+@app.get("/gallery/manifest")
+@app.get("/vault/assets")
 async def api_vault_assets():
     manifest = load_manifest()
     assets = []
@@ -606,21 +618,23 @@ async def api_vault_assets():
 # 5. 云端 OTA 极速热更新与版本分发中枢 (Cloud In-App OTA Engine)
 # =========================================================================
 @app.get("/api/app/version")
+@app.get("/app/version")
 @app.get("/api/v1/ota/check")
 @app.get("/api/app/update_check")
-async def api_ota_check(current_version: Optional[str] = "3.0.0", current_code: Optional[int] = 300, client_id: Optional[str] = "cym_vip_official"):
+@app.get("/app/update_check")
+async def api_ota_check(current_version: Optional[str] = "4.5", current_code: Optional[int] = 450, client_id: Optional[str] = "cym_vip_official"):
     ota = load_json_file(OTA_STATE_PATH, DEFAULT_OTA_STATE)
-    target_code = ota.get("version_code", 310)
-    has_update = (target_code > current_code) or (current_version != ota.get("latest_version", "v3.1.0 VIP Pro"))
+    target_code = ota.get("version_code", 450)
+    has_update = (target_code > current_code) or (current_version != ota.get("latest_version", "v4.5 VIP 旗舰终极版"))
     
     # 获取 APK 实际文件大小
     apk_candidates = [
         os.path.join(BASE_STORAGE, "latest_app.apk"),
-        r"C:\Users\QQ\Desktop\PureClip_QQ_v3.0_局域网测试尊享版.apk",
-        r"C:\Users\QQ\Desktop\OmniMedia_全套项目源码与开发交接总档案\03_编译就绪APK产物\PureClip_QQ_v3.0_局域网测试尊享版.apk",
+        r"C:\Users\QQ\Desktop\PureClip_QQ_v4.5_旗舰终极版.apk",
+        r"C:\Users\QQ\Desktop\OmniMedia_全套项目源码与开发交接总档案\03_编译就绪APK产物\PureClip_QQ_v4.5_旗舰终极版.apk",
         r"G:\Antigravity_Data\scratch\OmniMediaWatermarkApp\app\build\outputs\apk\debug\app-debug.apk"
     ]
-    file_size_mb = 14.5
+    file_size_mb = 7.4
     for c in apk_candidates:
         if os.path.exists(c):
             file_size_mb = round(os.path.getsize(c) / (1024 * 1024), 2)
@@ -631,24 +645,27 @@ async def api_ota_check(current_version: Optional[str] = "3.0.0", current_code: 
         "success": True,
         "data": {
             "has_update": has_update,
-            "latest_version": ota.get("latest_version", "v3.1.0 VIP Pro"),
+            "latest_version": ota.get("latest_version", "v4.5 VIP 旗舰终极版"),
             "version_code": target_code,
-            "min_version_code": ota.get("min_version_code", 300),
+            "min_version_code": ota.get("min_version_code", 450),
             "force_update": ota.get("force_update", False),
             "package_size_bytes": int(file_size_mb * 1024 * 1024),
             "package_size_mb": file_size_mb,
             "package_url": "/api/app/download/latest.apk",
+            "download_url": "/api/app/download/latest.apk",
             "release_notes": ota.get("changelog", "🔥 1. 4K/8K 满血无损原画流式传输\n🔥 2. 纯净媒体库架构\n🔥 3. 增量去重防重复上传\n🔥 4. 云端 OTA 在线热更新")
         }
     }
 
 @app.post("/api/app/update_publish")
+@app.post("/app/update_publish")
 async def api_app_update_publish(request: Request):
     ota = load_json_file(OTA_STATE_PATH, DEFAULT_OTA_STATE)
     body = await request.json()
-    ota["latest_version"] = body.get("version", body.get("latest_version", "v3.1.0 VIP Pro"))
-    ota["version_code"] = int(body.get("version_code", ota.get("version_code", 310) + 10))
+    ota["latest_version"] = body.get("version", body.get("latest_version", "v4.5 VIP 旗舰终极版"))
+    ota["version_code"] = int(body.get("version_code", ota.get("version_code", 450) + 10))
     ota["download_url"] = "/api/app/download/latest.apk"
+    ota["package_url"] = "/api/app/download/latest.apk"
     ota["changelog"] = body.get("changelog", ota.get("changelog", ""))
     ota["force_update"] = bool(body.get("force_update", False))
     ota["publish_time"] = time.strftime("%Y-%m-%d %H:%M", time.localtime())
@@ -680,12 +697,16 @@ async def api_app_update_publish(request: Request):
 
 @app.get("/api/app/download/latest.apk")
 @app.head("/api/app/download/latest.apk")
+@app.get("/app/download/latest.apk")
+@app.head("/app/download/latest.apk")
+@app.get("/download/latest.apk")
+@app.head("/download/latest.apk")
 async def api_app_download_latest_apk():
     """Stream latest APK file for in-app OTA download."""
     apk_candidates = [
         os.path.join(BASE_STORAGE, "latest_app.apk"),
-        r"C:\Users\QQ\Desktop\PureClip_QQ_v3.0_局域网测试尊享版.apk",
-        r"C:\Users\QQ\Desktop\OmniMedia_全套项目源码与开发交接总档案\03_编译就绪APK产物\PureClip_QQ_v3.0_局域网测试尊享版.apk",
+        r"C:\Users\QQ\Desktop\PureClip_QQ_v4.5_旗舰终极版.apk",
+        r"C:\Users\QQ\Desktop\OmniMedia_全套项目源码与开发交接总档案\03_编译就绪APK产物\PureClip_QQ_v4.5_旗舰终极版.apk",
         r"G:\Antigravity_Data\scratch\OmniMediaWatermarkApp\app\build\outputs\apk\debug\app-debug.apk"
     ]
     apk_path = None
@@ -704,6 +725,7 @@ async def api_app_download_latest_apk():
     )
 
 @app.post("/api/app/upload_apk")
+@app.post("/app/upload_apk")
 async def api_app_upload_apk(request: Request):
     """Admin uploads a new APK from browser dashboard."""
     try:
@@ -717,7 +739,7 @@ async def api_app_upload_apk(request: Request):
         with open(target_path, "wb") as f:
             f.write(content)
             
-        desktop_apk = r"C:\Users\QQ\Desktop\PureClip_QQ_v3.0_局域网测试尊享版.apk"
+        desktop_apk = r"C:\Users\QQ\Desktop\PureClip_QQ_v4.5_旗舰终极版.apk"
         try:
             with open(desktop_apk, "wb") as f:
                 f.write(content)
@@ -729,10 +751,12 @@ async def api_app_upload_apk(request: Request):
         return {"code": 200, "success": True, "msg": f"新版 APK 上传成功 ({sz_mb} MB)", "size_mb": sz_mb}
     except Exception as e:
         return {"code": 500, "success": False, "msg": str(e)}
+
 # =========================================================================
 # 7. GPU 算力集群与安全审计 (GPU Metrics & Audit Logs)
 # =========================================================================
 @app.get("/api/v1/gpu/metrics")
+@app.get("/gpu/metrics")
 async def api_gpu_metrics():
     return {
         "code": 200,
@@ -747,6 +771,7 @@ async def api_gpu_metrics():
     }
 
 @app.get("/api/v1/audit/logs")
+@app.get("/audit/logs")
 async def api_audit_logs():
     return {
         "code": 200,
