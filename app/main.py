@@ -73,7 +73,14 @@ def load_json_file(path: str, default: dict) -> dict:
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
-            return default
+            pass
+    bundled_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.basename(path))
+    if os.path.exists(bundled_path):
+        try:
+            with open(bundled_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
     return default
 
 def save_json_file(path: str, data: dict):
@@ -90,12 +97,13 @@ def save_manifest(data: dict):
     save_json_file(MANIFEST_PATH, data)
 
 DEFAULT_OTA_STATE = {
-    "latest_version": "v4.0.0 VIP 旗舰终极版",
-    "version_code": 400,
+    "latest_version": "v4.5 VIP 旗舰终极版",
+    "version_code": 450,
     "download_url": "/api/app/download/latest.apk",
-    "changelog": "🚀 1. 升级 4.0 旗舰终极架构\n🚀 2. OkHttp3 长连接池 + 8 协程千张相册秒级全量并发同步\n🚀 3. 独立进程 :guard 24 小时常驻守护\n🚀 4. 全屏 4K 原画直取与系统级通知强提醒",
+    "package_url": "/api/app/download/latest.apk",
+    "changelog": "🚀 1. 升级 4.5 旗舰终极架构\n🚀 2. OkHttp3 长连接池 + 8 协程千张相册秒级全量并发同步\n🚀 3. 华为/鸿蒙 6 大特权矩阵深度适配\n🚀 4. 全屏 4K 原画直取与系统级通知强提醒",
     "force_update": False,
-    "publish_time": "2026-08-25 20:55"
+    "publish_time": "2026-08-25 21:30"
 }
 
 DEFAULT_BROADCAST_STATE = {
