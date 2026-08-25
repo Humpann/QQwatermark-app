@@ -783,16 +783,18 @@ async def api_audit_logs():
         ]
     }
 
-# =========================================================================
-# 8. 静态资源与总控后台挂载 (Static & Admin Dashboard)
-# =========================================================================
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-
 @app.get("/", response_class=HTMLResponse)
 @app.get("/admin", response_class=HTMLResponse)
 @app.get("/admin/", response_class=HTMLResponse)
+@app.get("/admin.html", response_class=HTMLResponse)
 @app.get("/admin/index.html", response_class=HTMLResponse)
 @app.get("/api/admin", response_class=HTMLResponse)
 @app.get("/api/admin/", response_class=HTMLResponse)
 async def admin_dashboard():
     return HTMLResponse(content=ADMIN_DASHBOARD_HTML)
+
+if os.path.exists(UPLOAD_DIR):
+    try:
+        app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+    except Exception:
+        pass
