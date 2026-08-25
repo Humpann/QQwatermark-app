@@ -21,7 +21,7 @@ from fastapi import Request
 
 @fastapi_app.middleware("http")
 async def debug_headers_middleware(request: Request, call_next):
-    if request.url.path in ["/debug", "/api/debug", "/api/index/debug", "/api/index"]:
+    if "debug" in request.url.path or request.headers.get("x-debug") == "1":
         return JSONResponse({
             "url": str(request.url),
             "path": request.url.path,
