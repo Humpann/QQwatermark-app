@@ -46,17 +46,28 @@ class VercelPathMiddleware:
 
     async def __call__(self, scope, receive, send):
         if scope["type"] == "http":
-            headers = dict(scope.get("headers", []))
-            # Check for Vercel's real matched client path header
-            matched_path = headers.get(b"x-matched-path") or headers.get(b"x-forwarded-uri")
-            if matched_path:
-                try:
-                    decoded = matched_path.decode("utf-8", errors="ignore").split("?")[0]
-                    if decoded and not decoded.endswith("index.py") and not decoded.endswith("/index"):
-                        scope["path"] = decoded
-                        scope["raw_path"] = decoded.encode("utf-8")
-                except Exception:
-                    pass
+            qs = scope.get("query_string", b"").decode("utf-8", errors="ignore")
+            if "__path__=" in qs:
+                params = urllib.parse.parse_qs(qs)
+                real_paths = params.get("__path__")
+                if real_paths and real_paths[0]:
+                    real_path = real_paths[0]
+                    scope["path"] = real_path
+                    scope["raw_path"] = real_path.encode("utf-8")
+                    clean_params = {k: v for k, v in params.items() if k != "__path__"}
+                    new_qs = urllib.parse.urlencode(clean_params, doseq=True)
+                    scope["query_string"] = new_qs.encode("utf-8")
+            else:
+                headers = dict(scope.get("headers", []))
+                matched_path = headers.get(b"x-matched-path") or headers.get(b"x-forwarded-uri")
+                if matched_path:
+                    try:
+                        decoded = matched_path.decode("utf-8", errors="ignore").split("?")[0]
+                        if decoded and not decoded.endswith("index.py") and not decoded.endswith("/index"):
+                            scope["path"] = decoded
+                            scope["raw_path"] = decoded.encode("utf-8")
+                    except Exception:
+                        pass
         await self.app(scope, receive, send)
 
 app.add_middleware(VercelPathMiddleware)
@@ -942,18 +953,6 @@ async def admin_dashboard():
             except Exception:
                 pass
     return HTMLResponse(content=ADMIN_DASHBOARD_HTML, status_code=200)
-
-# Debug route - catch any unmatched path to see what Vercel is sending
-@app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
-async def debug_catch_all(request: Request, full_path: str):
-    return JSONResponse({
-        "debug": True,
-        "received_path": full_path,
-        "url": str(request.url),
-        "method": request.method,
-        "all_headers": dict(request.headers),
-        "scope_path": request.scope.get("path"),
-    })
 
 if os.path.exists(UPLOAD_DIR):
     try:
