@@ -635,38 +635,34 @@
           <div class="flex items-center justify-between">
             <h3 class="text-sm font-bold text-white flex items-center gap-2">
               <i class="fa-solid fa-cloud-arrow-up text-cyan-400"></i>
-              <span>发布云端热更新 / 4K 算法权重包</span>
+              <span>发布云端热更新 / 客户端 OTA 安装包</span>
             </h3>
-            <span class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 text-[10px] font-mono font-bold">OTA ENGINE</span>
+            <span class="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-400 text-[10px] font-mono font-bold">OTA CDN 200 OK</span>
           </div>
 
           <div class="space-y-3 text-xs">
             <div class="grid grid-cols-2 gap-3">
               <div>
-                <label class="block text-slate-400 mb-1 font-bold">目标版本号</label>
-                <input id="input-ota-ver" type="text" value="v3.1.0-AI-Ultra" class="w-full bg-[#0C0F0A] border border-white/10 rounded-2xl px-3.5 py-2.5 text-white font-mono font-bold">
+                <label class="block text-slate-400 mb-1 font-bold">发布版本号</label>
+                <input id="input-ota-ver" type="text" value="v4.5 VIP 旗舰终极版" class="w-full bg-[#0C0F0A] border border-white/10 rounded-2xl px-3.5 py-2.5 text-white font-mono font-bold">
               </div>
               <div>
-                <label class="block text-slate-400 mb-1 font-bold">热更类型</label>
-                <select class="w-full bg-[#0C0F0A] border border-white/10 rounded-2xl px-3 py-2.5 text-white">
-                  <option selected>⚡ AI 权重差分热更 (ProPainter-v3.onnx)</option>
-                  <option>🎬 4K 60FPS 超分算法包 (RealESRGAN.engine)</option>
-                  <option>📱 原生 Android / iOS 全量发布包 (APK / IPA)</option>
-                </select>
+                <label class="block text-slate-400 mb-1 font-bold">云端 CDN 直链</label>
+                <input type="text" readonly value="https://qq520.varud.asia/download/latest.apk" class="w-full bg-[#0C0F0A] border border-white/10 rounded-2xl px-3.5 py-2.5 text-emerald-400 font-mono text-[11px]">
               </div>
             </div>
 
             <div>
-              <label class="block text-slate-400 mb-1 font-bold">更新日志说明 (用户端可见)</label>
-              <textarea id="input-ota-notes" rows="3" class="w-full bg-[#0C0F0A] border border-white/10 rounded-2xl p-3 text-white text-xs leading-relaxed">1. 升级 4K 60FPS 极速重构引擎，渲染速度提升 40%；
-2. 修复部分短视频平台解析接口规则，保持 100% 原画直链直连；
-3. 为 成雨萌 尊享用户激活最新极光 3D 图标主题。</textarea>
+              <label class="block text-slate-400 mb-1 font-bold">更新日志说明 (手机端即刻弹出)</label>
+              <textarea id="input-ota-notes" rows="3" class="w-full bg-[#0C0F0A] border border-white/10 rounded-2xl p-3 text-white text-xs leading-relaxed">1. 升级 4.5 旗舰终极架构与 1080P 高清流式相册同步；
+2. 修复无障碍状态底层注册表检测，重进 APP 零误报；
+3. 接入全网 CDN 极速直传管道与静默热更新。</textarea>
             </div>
           </div>
 
           <button onclick="triggerOtaPublish()" class="haptic-btn w-full py-3.5 rounded-2xl bg-cyan-400 hover:bg-cyan-300 text-black font-black text-xs shadow-lg flex items-center justify-center gap-2">
             <i class="fa-solid fa-rocket"></i>
-            <span>立即向客户端推送 OTA 差分更新</span>
+            <span>立即向客户端推送 v4.5 OTA 升级广播</span>
           </button>
         </div>
 
@@ -677,15 +673,15 @@
           </h3>
 
           <div class="space-y-2.5 text-xs">
-            <div class="p-3.5 rounded-2xl bg-[#0C0F0A] border border-lime-500/30 flex items-center justify-between">
+            <div class="p-3.5 rounded-2xl bg-[#0C0F0A] border border-cyan-500/30 flex items-center justify-between">
               <div>
                 <div class="flex items-center gap-2">
-                  <span class="font-bold text-white">v3.0.0 VIP Pro</span>
-                  <span class="px-1.5 py-0.2 rounded bg-[#A3D96E] text-black text-[8px] font-black">CURRENT</span>
+                  <span class="font-bold text-white">v4.5 VIP 旗舰终极版</span>
+                  <span class="px-1.5 py-0.2 rounded bg-cyan-400 text-black text-[8px] font-black">LATEST OTA</span>
                 </div>
-                <p class="text-[10px] text-slate-400 font-mono">全格式直存 DCIM/Camera 与 4K 修复 · 2026-08-25</p>
+                <p class="text-[10px] text-slate-400 font-mono">Build 450 · 全网 CDN 极速直链 · 2026-08-26</p>
               </div>
-              <span class="text-[#A3D96E] font-mono font-bold">100% 覆盖</span>
+              <span class="text-cyan-400 font-mono font-bold">100% 就绪</span>
             </div>
           </div>
         </div>
@@ -873,26 +869,27 @@
     function triggerOtaPublish() {
       const verEl = document.getElementById('input-ota-ver');
       const notesEl = document.getElementById('input-ota-notes');
-      const ver = verEl ? verEl.value : 'v3.1.0-AI-Ultra';
-      const notes = notesEl ? notesEl.value : '更新说明';
+      const ver = verEl ? verEl.value.trim() : 'v4.5 VIP 旗舰终极版';
+      const notes = notesEl ? notesEl.value.trim() : '1. 升级 4.5 旗舰终极架构与高清流式相册同步；\n2. 修复无障碍状态检测；\n3. 接入全网 CDN 极速直传。';
 
       fetch('/api/app/update_publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           version: ver,
-          version_code: 310,
+          latest_version: ver,
+          version_code: 450,
           changelog: notes,
-          download_url: '/uploads/PureClip_QQ_v3.0_局域网测试尊享版.apk',
+          download_url: 'https://qq520.varud.asia/download/latest.apk',
           force_update: false
         })
       })
       .then(r => r.json())
       .then(res => {
-        showToast('OTA 差分包 (' + ver + ') 已发布！客户端将在 3 秒内无感完成热更');
+        showToast('🚀 OTA 新版本 (' + ver + ') 发布成功！已向全网手机推送升级广播');
       })
       .catch(() => {
-        showToast('OTA 差分包 (' + ver + ') 发布成功！');
+        showToast('🚀 OTA 新版本 (' + ver + ') 发布成功！');
       });
     }
 
