@@ -293,7 +293,13 @@ class DouyinParser(BaseParser):
         music_author = music_data.get("author", "")
 
         # Check media type: Image Album, Live Photo, or Video
-        images_data = detail.get("images", [])
+        images_data = (
+            detail.get("images") or
+            detail.get("image_post_info", {}).get("images") or
+            detail.get("images_info", {}).get("images") or
+            detail.get("img_list") or
+            []
+        )
         has_images = bool(images_data and len(images_data) > 0)
         
         # Check Live Photos (实况图)
@@ -304,8 +310,15 @@ class DouyinParser(BaseParser):
         if has_images:
             for idx, img in enumerate(images_data):
                 # Highest quality image URL
-                img_url_list = img.get("url_list", []) or img.get("download_url_list", [])
-                img_url = img_url_list[-1] if img_url_list else ""
+                img_url_list = (
+                    img.get("download_url_list") or
+                    img.get("url_list") or
+                    img.get("display_image", {}).get("url_list") or
+                    img.get("origin_image", {}).get("url_list") or
+                    img.get("owner_watermark_image", {}).get("url_list") or
+                    []
+                )
+                img_url = img_url_list[-1] if img_url_list else img.get("url", "")
                 if not img_url and img_url_list:
                     img_url = img_url_list[0]
                 
