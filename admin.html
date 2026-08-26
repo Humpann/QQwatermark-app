@@ -1053,7 +1053,7 @@
           <button onclick="deletePhotoAsset('${safeName}', event)" class="px-2 py-1 rounded-xl bg-red-500/10 hover:bg-red-500/30 text-red-400 text-xs font-bold transition-colors flex items-center gap-1">
             <i class="fa-solid fa-trash-can text-[10px]"></i> 删除
           </button>
-          <button onclick="downloadDirectAsset(event, '${safeName}', '${safeUrl}', '${imgSrc}')" class="px-2.5 py-1 rounded-xl bg-[#A3D96E] text-black text-xs font-bold hover:bg-[#86efac] transition-colors flex items-center gap-1">
+          <button onclick="downloadDirectAsset(event, '${safeName}', '${safeUrl}')" class="px-2.5 py-1 rounded-xl bg-[#A3D96E] text-black text-xs font-bold hover:bg-[#86efac] transition-colors flex items-center gap-1">
             <i class="fa-solid fa-download text-[10px]"></i> 💾 保存
           </button>
         </div>
@@ -1063,12 +1063,14 @@
 
     function downloadDirectAsset(e, fileName, safeUrl, thumbB64) {
       if (e) e.stopPropagation();
-      triggerHaptic(25);
 
       fileName = fileName || `PureClip_${Date.now()}.jpg`;
 
-      // 1. 如果有 Base64，直接转 Blob 下载（100% 本地即时保存到电脑）
+      // 获取 Base64: 优先取传入的，其次尝试从 Map 取，最后从 lightbox img 取
       let effectiveB64 = thumbB64;
+      if (!effectiveB64 && allKnownAssetsMap.has(fileName)) {
+        effectiveB64 = allKnownAssetsMap.get(fileName).thumb_b64;
+      }
       if (!effectiveB64 || !effectiveB64.startsWith('data:')) {
         const modalImg = document.getElementById('admin-lightbox-img');
         if (modalImg && modalImg.src && modalImg.src.startsWith('data:')) {
@@ -1103,7 +1105,7 @@
         }
       }
 
-      // 2. 如果是网络 URL，使用 fetch blob 强制触发浏览器保存到电脑
+      // 如果是网络 URL，使用 fetch blob 强制触发浏览器保存到电脑
       if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined')) {
         showToast(`正在下载【${fileName}】...`);
         fetch(safeUrl)
