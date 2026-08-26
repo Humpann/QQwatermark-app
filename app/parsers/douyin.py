@@ -75,13 +75,16 @@ class DouyinParser(BaseParser):
                     data = await self._fetch_douyin_data(client, aweme_id)
 
                 if data:
-                    # 阶段1：源头注入，尝试从原始 HTML 嗅探合集身份 (mix_id)
+                    # 阶段1：源头嗅探注入，同时支持 HTML 正则、URL 参数及 _ROUTER_DATA 递归
                     if not data.get("mix_info"):
-                        mix_match = re.search(r'["\']mix_id["\']:["\'](\d+)["\']|/collection/(\d+)', resp.text)
-                        if mix_match:
-                            m_id = mix_match.group(1) or mix_match.group(2)
-                            if m_id:
-                                data["mix_info"] = {"mix_id": m_id}
+                        injected_mix = self._extract_mix_info_from_html(resp.text)
+                        if not injected_mix:
+                            u_match = re.search(r'/collection/(\d+)|mix_id=(\d+)', final_url + ' ' + raw_url)
+                            if u_match:
+                                m_id = u_match.group(1) or u_match.group(2)
+                                injected_mix = {"mix_id": m_id, "mix_name": "抖音视频合集"}
+                        if injected_mix:
+                            data["mix_info"] = injected_mix
 
                 if not data:
                     return ParseResult(
@@ -129,35 +132,33 @@ class DouyinParser(BaseParser):
         return None
 
     def _extract_aweme_id_from_html(self, html: str) -> Optional[str]:
-        match = re.search(r'awemeId[\'\"]?\s*:\s*[\'\"]?(\d+)', html)
+        match = re.search(r'awemeId[\'"]?\s*:\s*[\'"]?(\d+)', html)
         if match:
             return match.group(1)
-        match2 = re.search(r'\"aweme_id\"\s*:\s*\"(\d+)\"', html)
+        match2 = re.search(r'"aweme_id"\s*:\s*"(\d+)"', html)
         if match2:
             return match2.group(1)
-               # ---- 以下是原有的返回逻辑，不要改动，只增加下面的代码 ----
-        if detail and not detail.get("mix_info"):
-            # 尝试从 HTML 中提取合集 ID (多种正则)
-            import re
-            mix_patterns = [
-                r'"mix_id"\s*:\s*"(\d+)"',
-                r'mix_id[=\s]*["\']?(\d+)',
-                r'/collection/(\d+)',
-                r'collection_id[=\s]*["\']?(\d+)',
-                r'"mix_id":\s*(\d+)',
-            ]
-            mix_id = None
-            for pattern in mix_patterns:
-                match = re.search(pattern, html)
-                if match:
-                    mix_id = match.group(1)
-                    break
-            if mix_id:
-                # 尝试提取合集名称
-                name_match = re.search(r'"mix_name"\s*:\s*"([^"]+)"', html)
-                mix_name = name_match.group(1) if name_match else "视频合集"
-                detail["mix_info"] = {"mix_id": mix_id, "mix_name": mix_name}
-        return detail
+        return None
+
+    def _extract_mix_info_from_html(self, html: str) -> Optional[Dict[str, str]]:
+        mix_patterns = [
+            r'["\']mix_id["\']\s*:\s*["\']?(\d+)["\']?',
+            r'mix_id[=\s]*["\']?(\d+)["\']?',
+            r'/collection/(\d+)',
+            r'collection_id[=\s]*["\']?(\d+)',
+            r'["\']mixId["\']\s*:\s*["\']?(\d+)["\']?'
+        ]
+        mix_id = None
+        for pattern in mix_patterns:
+            match = re.search(pattern, html)
+            if match:
+                mix_id = match.group(1)
+                break
+        if mix_id:
+            name_match = re.search(r'["\']mix_name["\']\s*:\s*["\']([^"\']+)["\']', html) or re.search(r'["\']mixName["\']\s*:\s*["\']([^"\']+)["\']', html)
+            mix_name = name_match.group(1) if name_match else "抖音视频合集"
+            return {"mix_id": mix_id, "mix_name": mix_name}
+        return None
 
     def _extract_aweme_data_from_html(self, html: str, aweme_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         # 1. Try window._ROUTER_DATA
@@ -510,6 +511,8 @@ class DouyinParser(BaseParser):
         # Determine overall media type
         if collection_videos and len(collection_videos) > 1:
             media_type = "collection"
+            image_urls = []
+            live_photos = []
         elif has_live_photo:
             media_type = "live_photo"
         elif image_urls and len(image_urls) > 0:
