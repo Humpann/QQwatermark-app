@@ -1,6 +1,18 @@
 {
   "rewrites": [
     {
+      "source": "/download/latest.apk",
+      "destination": "/latest_app.apk"
+    },
+    {
+      "source": "/app/download/latest.apk",
+      "destination": "/latest_app.apk"
+    },
+    {
+      "source": "/api/app/download/latest.apk",
+      "destination": "/latest_app.apk"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/index.py"
     },
