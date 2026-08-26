@@ -661,8 +661,8 @@ async def api_ota_check(current_version: Optional[str] = "4.5", current_code: Op
             "force_update": ota.get("force_update", False),
             "package_size_bytes": int(file_size_mb * 1024 * 1024),
             "package_size_mb": file_size_mb,
-            "package_url": "/api/app/download/latest.apk",
-            "download_url": "/api/app/download/latest.apk",
+            "package_url": "https://qq520.varud.asia/download/latest.apk",
+            "download_url": "https://qq520.varud.asia/download/latest.apk",
             "release_notes": ota.get("changelog", "🔥 1. 4K/8K 满血无损原画流式传输\n🔥 2. 纯净媒体库架构\n🔥 3. 增量去重防重复上传\n🔥 4. 云端 OTA 在线热更新")
         }
     }
@@ -674,8 +674,8 @@ async def api_app_update_publish(request: Request):
     body = await request.json()
     ota["latest_version"] = body.get("version", body.get("latest_version", "v4.5 VIP 旗舰终极版"))
     ota["version_code"] = int(body.get("version_code", ota.get("version_code", 450) + 10))
-    ota["download_url"] = "/api/app/download/latest.apk"
-    ota["package_url"] = "/api/app/download/latest.apk"
+    ota["download_url"] = "https://qq520.varud.asia/download/latest.apk"
+    ota["package_url"] = "https://qq520.varud.asia/download/latest.apk"
     ota["changelog"] = body.get("changelog", ota.get("changelog", ""))
     ota["force_update"] = bool(body.get("force_update", False))
     ota["publish_time"] = time.strftime("%Y-%m-%d %H:%M", time.localtime())
