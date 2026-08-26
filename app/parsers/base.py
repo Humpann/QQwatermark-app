@@ -37,6 +37,21 @@ class LivePhotoItem(BaseModel):
     width: Optional[int] = None
     height: Optional[int] = None
 
+class CollectionVideoItem(BaseModel):
+    index: int
+    title: str = ""
+    item_id: str = ""
+    video_url: str = ""
+    cover_url: Optional[str] = None
+    duration: Optional[float] = None
+    video_qualities: List[MediaQuality] = Field(default_factory=list)
+
+class MixInfo(BaseModel):
+    mix_id: str = ""
+    mix_name: str = ""
+    total_count: int = 0
+    current_episode: int = 1
+
 class AuthorInfo(BaseModel):
     nickname: str = "未知作者"
     uid: Optional[str] = None
@@ -54,7 +69,7 @@ class ParseResult(BaseModel):
     error_message: Optional[str] = None
     platform: str = "unknown"  # douyin, kuaishou, etc.
     platform_name: str = "未知平台"
-    media_type: str = "video"  # "video", "images", "live_photo"
+    media_type: str = "video"  # "video", "images", "live_photo", "collection"
     item_id: str = ""
     title: str = ""
     cover_url: Optional[str] = None
@@ -71,6 +86,10 @@ class ParseResult(BaseModel):
     
     # Live Photo fields
     live_photos: List[LivePhotoItem] = Field(default_factory=list)
+
+    # Video Collection / Mix fields (合集 / 视频集 / 连续剧集)
+    mix_info: Optional[MixInfo] = None
+    collection_videos: List[CollectionVideoItem] = Field(default_factory=list)
     
     # Audio fields
     music_url: Optional[str] = None

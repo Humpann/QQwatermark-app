@@ -9,7 +9,7 @@ import httpx
 
 from app.parsers.base import (
     BaseParser, ParseResult, MediaQuality, LivePhotoItem,
-    AuthorInfo, Statistics, get_random_ua
+    CollectionVideoItem, MixInfo, AuthorInfo, Statistics, get_random_ua
 )
 
 class DouyinParser(BaseParser):
@@ -83,7 +83,7 @@ class DouyinParser(BaseParser):
                         original_url=raw_url
                     )
 
-                return self._format_result(data, raw_url)
+                return await self._format_result(data, raw_url)
 
             except Exception as e:
                 return ParseResult(
@@ -399,8 +399,33 @@ class DouyinParser(BaseParser):
         if video_qualities:
             main_video_url = video_qualities[0].url
 
+        # Check Mix / Video Collection (合集 / 视频集 / 连续剧集)
+        mix_data = detail.get("mix_info") or detail.get("mix_item") or detail.get("mix")
+        collection_videos: List[CollectionVideoItem] = []
+        mix_info_obj: Optional[MixInfo] = None
+
+        if mix_data and isinstance(mix_data, dict):
+            mix_id = str(mix_data.get("mix_id") or mix_data.get("id") or "")
+            mix_name = mix_data.get("mix_name") or mix_data.get("name") or "抖音视频合集"
+            total_count = mix_data.get("st_count") or mix_data.get("all_count") or mix_data.get("sub_items_count") or 0
+            curr_ep = mix_data.get("current_episode") or 1
+            
+            if mix_id:
+                mix_info_obj = MixInfo(
+                    mix_id=mix_id,
+                    mix_name=mix_name,
+                    total_count=int(total_count) if total_count else 0,
+                    current_episode=int(curr_ep) if curr_ep else 1
+                )
+                try:
+                    collection_videos = await self._fetch_douyin_mix_videos(mix_id)
+                except Exception:
+                    pass
+
         # Determine overall media type
-        if has_live_photo:
+        if collection_videos and len(collection_videos) > 1:
+            media_type = "collection"
+        elif has_live_photo:
             media_type = "live_photo"
         elif has_images:
             media_type = "images"
@@ -413,6 +438,8 @@ class DouyinParser(BaseParser):
             cover_url = video_data["cover"]["url_list"][0]
         elif image_urls:
             cover_url = image_urls[0]
+        elif collection_videos and collection_videos[0].cover_url:
+            cover_url = collection_videos[0].cover_url
 
         return ParseResult(
             success=True,
@@ -429,11 +456,66 @@ class DouyinParser(BaseParser):
             duration=duration,
             images=image_urls,
             live_photos=live_photos,
+            mix_info=mix_info_obj,
+            collection_videos=collection_videos,
             music_url=music_url,
             music_title=music_title,
             music_author=music_author,
             original_url=raw_url
         )
+
+    async def _fetch_douyin_mix_videos(self, mix_id: str) -> List[CollectionVideoItem]:
+        items: List[CollectionVideoItem] = []
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            "Referer": f"https://www.douyin.com/collection/{mix_id}",
+            "Accept": "application/json, text/plain, */*"
+        }
+        
+        urls = [
+            f"https://www.douyin.com/aweme/v1/web/mix/aweme/?mix_id={mix_id}&cursor=0&count=50&aid=6383&device_platform=webapp",
+            f"https://aweme.snssdk.com/aweme/v1/mix/aweme/?mix_id={mix_id}&cursor=0&count=50&aid=1128"
+        ]
+        
+        async with httpx.AsyncClient(headers=headers, follow_redirects=True, timeout=10.0) as client:
+            for u in urls:
+                try:
+                    resp = await client.get(u)
+                    if resp.status_code == 200:
+                        res_json = resp.json()
+                        aweme_list = res_json.get("aweme_list", []) or res_json.get("mix_items", [])
+                        if aweme_list:
+                            for idx, aw in enumerate(aweme_list):
+                                v_data = aw.get("video", {})
+                                play_urls = []
+                                bitrates = v_data.get("bit_rate", [])
+                                if bitrates:
+                                    for b in bitrates:
+                                        p_list = b.get("play_addr", {}).get("url_list", [])
+                                        if p_list:
+                                            play_urls.append(p_list[0].replace("playwm", "play"))
+                                if not play_urls and v_data.get("play_addr", {}).get("url_list"):
+                                    play_urls.append(v_data["play_addr"]["url_list"][0].replace("playwm", "play"))
+                                
+                                clean_v_url = play_urls[0] if play_urls else ""
+                                if clean_v_url:
+                                    c_urls = v_data.get("cover", {}).get("url_list", [])
+                                    cover = c_urls[0] if c_urls else None
+                                    dur = v_data.get("duration", 0) / 1000.0 if v_data.get("duration") else None
+                                    ep_title = aw.get("desc", f"第 {idx+1} 集").strip()
+                                    items.append(CollectionVideoItem(
+                                        index=idx + 1,
+                                        title=ep_title,
+                                        item_id=str(aw.get("aweme_id", "")),
+                                        video_url=clean_v_url,
+                                        cover_url=cover,
+                                        duration=dur
+                                    ))
+                            if items:
+                                break
+                except Exception:
+                    pass
+        return items
 
     def _format_quality_label(self, gear_name: str, w: int, h: int, bitrate: int, fps: int) -> str:
         max_dim = max(w, h)
