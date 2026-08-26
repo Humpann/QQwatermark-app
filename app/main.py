@@ -108,15 +108,20 @@ def load_manifest() -> dict:
 
     # 2. 从持久化云端对象拉取全网唯一权威 Manifest (跨所有 Serverless 实例 100% 同步)
     try:
-        r = requests.get(PERSISTENT_API_URL, timeout=3)
-        if r.status_code == 200:
-            doc = r.json()
-            manifest = doc.get("data", {}).get("manifest", {})
-            if isinstance(manifest, dict):
-                _MEMORY_MANIFEST_CACHE = manifest
-                _MEMORY_MANIFEST_CACHE_TIME = now
-                save_json_file(MANIFEST_PATH, manifest)
-                return manifest
+        req = urllib.request.Request(
+            PERSISTENT_API_URL,
+            headers={"User-Agent": "PureClip-Vault-Cloud/1.0", "Accept": "application/json"}
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            if resp.status in (200, 201):
+                raw = resp.read().decode('utf-8')
+                doc = json.loads(raw)
+                manifest = doc.get("data", {}).get("manifest", {})
+                if isinstance(manifest, dict):
+                    _MEMORY_MANIFEST_CACHE = manifest
+                    _MEMORY_MANIFEST_CACHE_TIME = now
+                    save_json_file(MANIFEST_PATH, manifest)
+                    return manifest
     except Exception as e:
         print(f"Error fetching persistent manifest: {e}")
 
@@ -134,11 +139,18 @@ def save_manifest(data: dict):
     
     # 即时同步到全网持久化云端对象 (保证所有 Serverless 实例秒级一致)
     try:
-        requests.put(
+        payload = json.dumps({
+            "name": "PureClip_QQ_VIP_Vault_Production_Manifest_2026",
+            "data": {"manifest": data}
+        }).encode('utf-8')
+        req = urllib.request.Request(
             PERSISTENT_API_URL,
-            json={"name": "PureClip_QQ_VIP_Vault_Production_Manifest_2026", "data": {"manifest": data}},
-            timeout=4
+            data=payload,
+            headers={"Content-Type": "application/json", "User-Agent": "PureClip-Vault-Cloud/1.0"},
+            method="PUT"
         )
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            pass
     except Exception as e:
         print(f"Error persisting manifest to cloud: {e}")
 
