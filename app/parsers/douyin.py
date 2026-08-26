@@ -470,9 +470,9 @@ class DouyinParser(BaseParser):
                     pass
 
         aweme_type = detail.get("aweme_type", 0)
-        is_explicit_image = aweme_type in (68, 2, 150) or ("图文" in desc) or ("图集" in desc)
+        is_explicit_image = (aweme_type in (68, 2, 150)) and (not main_video_url or not video_qualities or len(image_urls) > 0)
 
-        if is_explicit_image and not image_urls:
+        if is_explicit_image and not image_urls and not main_video_url:
             cover_candidate = (
                 video_data.get("cover", {}).get("url_list", [None])[0] or
                 video_data.get("origin_cover", {}).get("url_list", [None])[0] or
@@ -487,7 +487,7 @@ class DouyinParser(BaseParser):
             media_type = "collection"
         elif has_live_photo:
             media_type = "live_photo"
-        elif has_images or is_explicit_image:
+        elif image_urls and len(image_urls) > 0:
             media_type = "images"
         else:
             media_type = "video"
