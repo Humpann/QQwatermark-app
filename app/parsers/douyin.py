@@ -254,7 +254,7 @@ class DouyinParser(BaseParser):
 
         return None
 
-    def _format_result(self, detail: Dict[str, Any], raw_url: str) -> ParseResult:
+    async def _format_result(self, detail: Dict[str, Any], raw_url: str) -> ParseResult:
         try:
             with open('G:/Antigravity_Data/scratch/raw_aweme_detail.json', 'w', encoding='utf-8') as f:
                 json.dump(detail, f, ensure_ascii=False, indent=2)
