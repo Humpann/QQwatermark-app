@@ -75,7 +75,9 @@ app.add_middleware(VercelPathMiddleware)
 ADB_PATH = r"C:\Users\QQ\AppData\Local\Android\Sdk\platform-tools\adb.exe"
 
 class ParseRequest(BaseModel):
-    url: str
+    url: Optional[str] = None
+    share_content: Optional[str] = None
+    link: Optional[str] = None
 
 class BatchParseRequest(BaseModel):
     text: Optional[str] = None
@@ -264,14 +266,33 @@ async def get_lan_info(request: Request):
         "qr_code": qr_code
     }
 
-@app.post("/parse", response_model=ParseResult)
-@app.post("/api/parse", response_model=ParseResult)
+@app.post("/parse")
+@app.post("/api/parse")
 @app.post("/api/v1/extractor/parse")
 async def api_parse(req: ParseRequest):
-    if not req.url or not req.url.strip():
+    target_url = req.url or req.share_content or req.link
+    if not target_url or not target_url.strip():
         raise HTTPException(status_code=400, detail="链接不能为空")
-    result = await parse_media(req.url.strip())
-    return result
+    result = await parse_media(target_url.strip())
+    d = result.model_dump()
+    resp_data = {
+        "code": 0 if result.success else 500,
+        "message": "success" if result.success else (result.error_message or "解析失败"),
+        "data": {
+            "video_title": result.title,
+            "video_stream_url": result.video_url,
+            "bgm_stream_url": result.music_url,
+            "cover_image_url": result.cover_url,
+            "author": result.author.model_dump() if result.author else {},
+            "images": result.images or [],
+            "media_type": result.media_type,
+            "platform_name": result.platform_name,
+            "collection_videos": [v.model_dump() for v in result.collection_videos] if result.collection_videos else [],
+            "mix_info": result.mix_info.model_dump() if result.mix_info else None
+        }
+    }
+    resp_data.update(d)
+    return resp_data
 
 @app.post("/api/batch-parse")
 @app.post("/batch-parse")
