@@ -40,6 +40,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class VercelPathMiddleware:
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            headers = dict(scope.get("headers", []))
+            # Check for Vercel's real matched client path header
+            matched_path = headers.get(b"x-matched-path") or headers.get(b"x-forwarded-uri")
+            if matched_path:
+                try:
+                    decoded = matched_path.decode("utf-8", errors="ignore").split("?")[0]
+                    if decoded and not decoded.endswith("index.py") and not decoded.endswith("/index"):
+                        scope["path"] = decoded
+                        scope["raw_path"] = decoded.encode("utf-8")
+                except Exception:
+                    pass
+        await self.app(scope, receive, send)
+
+app.add_middleware(VercelPathMiddleware)
+
 ADB_PATH = r"C:\Users\QQ\AppData\Local\Android\Sdk\platform-tools\adb.exe"
 
 class ParseRequest(BaseModel):
@@ -930,10 +951,8 @@ async def debug_catch_all(request: Request, full_path: str):
         "received_path": full_path,
         "url": str(request.url),
         "method": request.method,
-        "headers_host": request.headers.get("host"),
-        "base_url": str(request.base_url),
+        "all_headers": dict(request.headers),
         "scope_path": request.scope.get("path"),
-        "scope_root_path": request.scope.get("root_path"),
     })
 
 if os.path.exists(UPLOAD_DIR):
