@@ -74,6 +74,15 @@ class DouyinParser(BaseParser):
                 if not data:
                     data = await self._fetch_douyin_data(client, aweme_id)
 
+                if data:
+                    # 阶段1：源头注入，尝试从原始 HTML 嗅探合集身份 (mix_id)
+                    if not data.get("mix_info"):
+                        mix_match = re.search(r'["']mix_id["']:["'](\d+)["']|/collection/(\d+)', resp.text)
+                        if mix_match:
+                            m_id = mix_match.group(1) or mix_match.group(2)
+                            if m_id:
+                                data["mix_info"] = {"mix_id": m_id}
+
                 if not data:
                     return ParseResult(
                         success=False,
