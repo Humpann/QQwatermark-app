@@ -667,6 +667,8 @@ async def api_ota_check(current_version: Optional[str] = "4.5", current_code: Op
         }
     }
 
+@app.post("/update_publish")
+@app.post("/api/update_publish")
 @app.post("/api/app/update_publish")
 @app.post("/app/update_publish")
 async def api_app_update_publish(request: Request):
