@@ -930,7 +930,8 @@
             const assets = res.data.assets;
             let hasNew = false;
             assets.forEach(a => {
-              if (a && a.file_name) {
+              // 严格过滤：必须包含真实有效的 Base64 画面数据，彻底杜绝黑屏卡片与无法下载的无效资产
+              if (a && a.file_name && a.thumb_b64 && a.thumb_b64.length > 50) {
                 if (!allKnownAssetsMap.has(a.file_name)) {
                   hasNew = true;
                 }
