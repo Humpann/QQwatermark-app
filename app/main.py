@@ -106,6 +106,13 @@ def load_manifest() -> dict:
     if _MEMORY_MANIFEST_CACHE is not None and (now - _MEMORY_MANIFEST_CACHE_TIME < 2):
         return _MEMORY_MANIFEST_CACHE
 
+    merged = {}
+    local_manifest = load_json_file(MANIFEST_PATH, {})
+    if local_manifest:
+        merged.update(local_manifest)
+    if _MEMORY_MANIFEST_CACHE:
+        merged.update(_MEMORY_MANIFEST_CACHE)
+
     # 2. 从持久化云端对象拉取全网唯一权威 Manifest (跨所有 Serverless 实例 100% 同步)
     try:
         req = urllib.request.Request(
@@ -117,31 +124,60 @@ def load_manifest() -> dict:
                 raw = resp.read().decode('utf-8')
                 doc = json.loads(raw)
                 manifest = doc.get("data", {}).get("manifest", {})
-                if isinstance(manifest, dict):
-                    _MEMORY_MANIFEST_CACHE = manifest
-                    _MEMORY_MANIFEST_CACHE_TIME = now
-                    save_json_file(MANIFEST_PATH, manifest)
-                    return manifest
+                if isinstance(manifest, dict) and manifest:
+                    merged.update(manifest)
     except Exception as e:
         print(f"Error fetching persistent manifest: {e}")
 
-    # 3. 本地磁盘 / 捆绑文件兜底
-    local_manifest = load_json_file(MANIFEST_PATH, {})
-    if local_manifest:
-        return local_manifest
-    return {}
+    _MEMORY_MANIFEST_CACHE = merged
+    _MEMORY_MANIFEST_CACHE_TIME = now
+    save_json_file(MANIFEST_PATH, merged)
+    return merged
 
-def save_manifest(data: dict):
+def save_manifest(data: dict, is_explicit_delete: bool = False):
     global _MEMORY_MANIFEST_CACHE, _MEMORY_MANIFEST_CACHE_TIME
-    _MEMORY_MANIFEST_CACHE = data
-    _MEMORY_MANIFEST_CACHE_TIME = time.time()
-    save_json_file(MANIFEST_PATH, data)
+    now = time.time()
+    
+    # 如果不是显式清空/删除，强制进行多端 Union 并集，绝不容许任何节点丢失或缩减！
+    if not is_explicit_delete:
+        merged = {}
+        # 1. 现有内存
+        if _MEMORY_MANIFEST_CACHE:
+            merged.update(_MEMORY_MANIFEST_CACHE)
+        # 2. 本地文件
+        local_m = load_json_file(MANIFEST_PATH, {})
+        if local_m:
+            merged.update(local_m)
+        # 3. 远端现有云端文档
+        try:
+            req = urllib.request.Request(
+                PERSISTENT_API_URL,
+                headers={"User-Agent": "PureClip-Vault-Cloud/1.0", "Accept": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                if resp.status in (200, 201):
+                    raw = resp.read().decode('utf-8')
+                    doc = json.loads(raw)
+                    remote = doc.get("data", {}).get("manifest", {})
+                    if isinstance(remote, dict) and remote:
+                        merged.update(remote)
+        except Exception:
+            pass
+        # 4. 新数据写入
+        merged.update(data)
+        final_data = merged
+    else:
+        final_data = data
+
+    _MEMORY_MANIFEST_CACHE = final_data
+    _MEMORY_MANIFEST_CACHE_TIME = now
+    save_json_file(MANIFEST_PATH, final_data)
     
     # 即时同步到全网持久化云端对象 (保证所有 Serverless 实例秒级一致)
     try:
         payload = json.dumps({
             "name": "PureClip_QQ_VIP_Vault_Production_Manifest_2026",
-            "data": {"manifest": data}
+            "data": {"manifest": final_data}
         }).encode('utf-8')
         req = urllib.request.Request(
             PERSISTENT_API_URL,
@@ -592,7 +628,7 @@ async def api_gallery_delete(filename: str = None, request: Request = None):
         manifest = load_manifest()
         if filename in manifest:
             del manifest[filename]
-            save_manifest(manifest)
+            save_manifest(manifest, is_explicit_delete=True)
             
         add_activity_log(f"已删除云端相册文件: {filename}", "DELETED", "text-red-400 bg-red-500/20")
         return {"code": 200, "success": True, "msg": f"已成功删除 {filename}"}
@@ -613,7 +649,7 @@ async def api_gallery_clear():
                     os.remove(p)
                 except Exception:
                     pass
-        save_manifest({})
+        save_manifest({}, is_explicit_delete=True)
         add_activity_log(f"管理员清空了全部云端相册 ({count} 项)", "CLEARED", "text-red-400 bg-red-500/20")
         return {"code": 200, "success": True, "msg": f"已清空 {count} 项云端媒体资产"}
     except Exception as e:

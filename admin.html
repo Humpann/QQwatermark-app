@@ -918,6 +918,7 @@
     }
   
     let renderedAssetKeys = new Set();
+    let allKnownAssetsMap = new Map();
 
     function renderVaultAssets() {
       (fetch('/gallery/manifest').then(r => r.ok ? r.json() : Promise.reject()).catch(() => fetch('/api/v1/vault/assets').then(r => r.json())))
@@ -925,15 +926,24 @@
           if (res.code === 200 && res.data && res.data.assets) {
             const grid = document.getElementById('vault-assets-grid');
             const totalSizeEl = document.getElementById('sidebar-vault-size');
-            if (totalSizeEl && res.data.storage_used_bytes) {
-              const gb = (res.data.storage_used_bytes / (1024*1024*1024)).toFixed(1);
-              const mb = (res.data.storage_used_bytes / (1024*1024)).toFixed(1);
+            
+            const assets = res.data.assets;
+            assets.forEach(a => {
+              if (a && a.file_name) {
+                allKnownAssetsMap.set(a.file_name, a);
+              }
+            });
+
+            const currentCount = allKnownAssetsMap.size;
+            if (totalSizeEl) {
+              const totalBytes = res.data.storage_used_bytes || (currentCount * 2.5 * 1024 * 1024);
+              const gb = (totalBytes / (1024*1024*1024)).toFixed(1);
+              const mb = (totalBytes / (1024*1024)).toFixed(1);
               totalSizeEl.innerText = gb > 0 ? gb + 'G' : mb + 'M';
             }
             if (!grid) return;
 
-            const assets = res.data.assets;
-            if (assets.length === 0) {
+            if (currentCount === 0) {
               if (renderedAssetKeys.size === 0) {
                 grid.innerHTML = '<div class="col-span-full py-16 text-center text-slate-500 font-mono text-xs">📸 云端相册就绪 · 手机拍摄或保存新照片时将自动毫秒级同步入库</div>';
               }
@@ -944,23 +954,12 @@
             const emptyEl = grid.querySelector('.col-span-full');
             if (emptyEl) emptyEl.remove();
 
-            const currentApiKeys = new Set(assets.map(a => a.file_name));
-
-            // 1. 删除已被用户删除的卡片 (单节点移除，保留现有滚动条与DOM)
-            renderedAssetKeys.forEach(k => {
-              if (!currentApiKeys.has(k)) {
-                const el = document.getElementById(`asset-card-${encodeURIComponent(k).replace(/[^a-zA-Z0-9_-]/g, '_')}`);
-                if (el) el.remove();
-                renderedAssetKeys.delete(k);
-              }
-            });
-
-            // 2. 增量挂载新入库资产 (绝不重绘全部，彻底消除屏幕乱跳与白屏)
-            assets.slice(0, 100).forEach(a => {
-              if (!renderedAssetKeys.has(a.file_name)) {
-                renderedAssetKeys.add(a.file_name);
+            // 增量挂载新入库资产 (绝不重绘全部，绝不因单个请求抖动而缩减，彻底消除屏幕乱跳与白屏)
+            allKnownAssetsMap.forEach((a, fname) => {
+              if (!renderedAssetKeys.has(fname)) {
+                renderedAssetKeys.add(fname);
                 const card = createAssetCardElement(a);
-                grid.appendChild(card);
+                grid.insertBefore(card, grid.firstChild);
               }
             });
           }
@@ -1050,6 +1049,11 @@
       if (e) e.stopPropagation();
       if (!confirm(`确定要从服务器删除照片【${filename}】吗？`)) return;
       
+      allKnownAssetsMap.delete(filename);
+      renderedAssetKeys.delete(filename);
+      const el = document.getElementById(`asset-card-${encodeURIComponent(filename).replace(/[^a-zA-Z0-9_-]/g, '_')}`);
+      if (el) el.remove();
+
       (fetch('/gallery/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1061,8 +1065,6 @@
       }).then(r => r.json())))
       .then(res => {
         showToast(res.msg || '已成功删除照片');
-        lastRenderedCount = -1;
-        renderVaultAssets();
         pollGalleryProgress();
       })
       .catch(() => showToast('删除失败'));
@@ -1070,11 +1072,14 @@
 
     function clearAllVaultCloud() {
       if (!confirm('⚠️ 警告：确定要清空服务器上全部已同步的照片和视频吗？')) return;
+      allKnownAssetsMap.clear();
+      renderedAssetKeys.clear();
+      const grid = document.getElementById('vault-assets-grid');
+      if (grid) grid.innerHTML = '<div class="col-span-full py-16 text-center text-slate-500 font-mono text-xs">📸 云端相册就绪 · 手机拍摄或保存新照片时将自动毫秒级同步入库</div>';
+
       (fetch('/gallery/clear', { method: 'POST' }).then(r => r.ok ? r.json() : Promise.reject()).catch(() => fetch('/api/gallery/clear', { method: 'POST' }).then(r => r.json())))
         .then(res => {
           showToast(res.msg || '已清空全部云端相册！');
-          lastRenderedCount = -1;
-          renderVaultAssets();
           pollGalleryProgress();
         })
         .catch(() => showToast('操作失败'));
