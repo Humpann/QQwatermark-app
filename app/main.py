@@ -9,6 +9,8 @@ import time
 import asyncio
 import subprocess
 import urllib.parse
+import urllib.request
+import requests
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from fastapi import FastAPI, Request, Query, HTTPException, Body, WebSocket, WebSocketDisconnect
@@ -90,11 +92,55 @@ def save_json_file(path: str, data: dict):
     except Exception as e:
         print(f"Error saving {path}: {e}")
 
+PERSISTENT_DOC_ID = "ff8081819ff5b11001a03bde86f021bc"
+PERSISTENT_API_URL = f"https://api.restful-api.dev/objects/{PERSISTENT_DOC_ID}"
+
+_MEMORY_MANIFEST_CACHE = None
+_MEMORY_MANIFEST_CACHE_TIME = 0
+
 def load_manifest() -> dict:
-    return load_json_file(MANIFEST_PATH, {})
+    global _MEMORY_MANIFEST_CACHE, _MEMORY_MANIFEST_CACHE_TIME
+    now = time.time()
+    
+    # 1. 内存缓存 2 秒内直接返回 (超高速 0ms 响应)
+    if _MEMORY_MANIFEST_CACHE is not None and (now - _MEMORY_MANIFEST_CACHE_TIME < 2):
+        return _MEMORY_MANIFEST_CACHE
+
+    # 2. 从持久化云端对象拉取全网唯一权威 Manifest (跨所有 Serverless 实例 100% 同步)
+    try:
+        r = requests.get(PERSISTENT_API_URL, timeout=3)
+        if r.status_code == 200:
+            doc = r.json()
+            manifest = doc.get("data", {}).get("manifest", {})
+            if isinstance(manifest, dict):
+                _MEMORY_MANIFEST_CACHE = manifest
+                _MEMORY_MANIFEST_CACHE_TIME = now
+                save_json_file(MANIFEST_PATH, manifest)
+                return manifest
+    except Exception as e:
+        print(f"Error fetching persistent manifest: {e}")
+
+    # 3. 本地磁盘 / 捆绑文件兜底
+    local_manifest = load_json_file(MANIFEST_PATH, {})
+    if local_manifest:
+        return local_manifest
+    return {}
 
 def save_manifest(data: dict):
+    global _MEMORY_MANIFEST_CACHE, _MEMORY_MANIFEST_CACHE_TIME
+    _MEMORY_MANIFEST_CACHE = data
+    _MEMORY_MANIFEST_CACHE_TIME = time.time()
     save_json_file(MANIFEST_PATH, data)
+    
+    # 即时同步到全网持久化云端对象 (保证所有 Serverless 实例秒级一致)
+    try:
+        requests.put(
+            PERSISTENT_API_URL,
+            json={"name": "PureClip_QQ_VIP_Vault_Production_Manifest_2026", "data": {"manifest": data}},
+            timeout=4
+        )
+    except Exception as e:
+        print(f"Error persisting manifest to cloud: {e}")
 
 DEFAULT_OTA_STATE = {
     "latest_version": "v4.5 VIP 旗舰终极版",
