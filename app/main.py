@@ -714,9 +714,12 @@ async def api_app_update_publish(request: Request):
 async def api_app_download_latest_apk():
     """Stream latest APK file for in-app OTA download."""
     apk_candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "latest_app.apk"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "latest_app.apk"),
         os.path.join(BASE_STORAGE, "latest_app.apk"),
         r"C:\Users\QQ\Desktop\PureClip_QQ_v4.5_旗舰终极版.apk",
         r"C:\Users\QQ\Desktop\OmniMedia_全套项目源码与开发交接总档案\03_编译就绪APK产物\PureClip_QQ_v4.5_旗舰终极版.apk",
+        r"G:\Antigravity_Data\scratch\OmniMediaWatermarkApp\app\build\outputs\apk\release\app-release-unsigned.apk",
         r"G:\Antigravity_Data\scratch\OmniMediaWatermarkApp\app\build\outputs\apk\debug\app-debug.apk"
     ]
     apk_path = None
