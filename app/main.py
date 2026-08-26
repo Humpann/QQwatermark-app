@@ -920,7 +920,21 @@ async def admin_dashboard():
                     return HTMLResponse(content=f.read())
             except Exception:
                 pass
-    return HTMLResponse(content=ADMIN_DASHBOARD_HTML)
+    return HTMLResponse(content=ADMIN_DASHBOARD_HTML, status_code=200)
+
+# Debug route - catch any unmatched path to see what Vercel is sending
+@app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+async def debug_catch_all(request: Request, full_path: str):
+    return JSONResponse({
+        "debug": True,
+        "received_path": full_path,
+        "url": str(request.url),
+        "method": request.method,
+        "headers_host": request.headers.get("host"),
+        "base_url": str(request.base_url),
+        "scope_path": request.scope.get("path"),
+        "scope_root_path": request.scope.get("root_path"),
+    })
 
 if os.path.exists(UPLOAD_DIR):
     try:
