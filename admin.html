@@ -1115,29 +1115,18 @@
             setTimeout(() => {
               document.body.removeChild(a);
               URL.revokeObjectURL(blobUrl);
-            }, 3000);
-            showToast(`✅ 已保存【${fileName}】到下载目录！`);
+            }, 5000);
+            showToast(`✅ 已触发保存【${fileName}】，请检查浏览器下载栏！`);
             return;
           } catch (blobErr) {
             console.warn('Sync blob failed, falling back to fetch blob:', blobErr);
-            fetch(effectiveB64)
-              .then(res => res.blob())
-              .then(blob => {
-                const blobUrl = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                setTimeout(() => {
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(blobUrl);
-                }, 3000);
-                showToast(`✅ 已保存【${fileName}】到下载目录！`);
-              })
-              .catch(err => {
-                window.open(effectiveB64, '_blank');
-              });
+            const win = window.open();
+            if (win) {
+              win.document.write(`<title>${fileName}</title><img src="${effectiveB64}" style="max-width:100%;height:auto;"/><p style="font-family:sans-serif;padding:10px;">右键图片即可另存为高清原图</p>`);
+            } else {
+              window.location.href = effectiveB64;
+            }
+            showToast(`✅ 已在新窗口打开【${fileName}】原图！`);
             return;
           }
         }
@@ -1145,26 +1134,16 @@
         // 3. 如果是普通 URL
         if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined')) {
           showToast(`正在下载【${fileName}】...`);
-          fetch(safeUrl)
-            .then(r => r.blob())
-            .then(blob => {
-              const blobUrl = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = blobUrl;
-              a.download = fileName;
-              document.body.appendChild(a);
-              a.click();
-              setTimeout(() => {
-                document.body.removeChild(a);
-                URL.revokeObjectURL(blobUrl);
-              }, 3000);
-              showToast(`✅ 已保存【${fileName}】到下载目录！`);
-            })
-            .catch(() => {
-              window.open(safeUrl, '_blank');
-            });
+          const a = document.createElement('a');
+          a.href = safeUrl;
+          a.download = fileName;
+          a.target = '_blank';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => document.body.removeChild(a), 2000);
+          showToast(`✅ 已触发【${fileName}】下载！`);
         } else {
-          showToast('⚠️ 该照片正在等待手机重传原图...');
+          showToast('⚠️ 正在从手机同步该照片原画，请稍候重试...');
         }
       } catch (globalErr) {
         console.error('Download error:', globalErr);
