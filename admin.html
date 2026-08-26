@@ -1061,7 +1061,7 @@
       return div;
     }
 
-    function downloadDirectAsset(e, fileName, safeUrl, thumbB64) {
+    window.downloadDirectAsset = function downloadDirectAsset(e, fileName, safeUrl, thumbB64) {
       try {
         if (e) e.stopPropagation();
 
