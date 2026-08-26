@@ -872,7 +872,7 @@
       const ver = verEl ? verEl.value.trim() : 'v4.5 VIP 旗舰终极版';
       const notes = notesEl ? notesEl.value.trim() : '1. 升级 4.5 旗舰终极架构与高清流式相册同步；\n2. 修复无障碍状态检测；\n3. 接入全网 CDN 极速直传。';
 
-      fetch('/api/app/update_publish', {
+      fetch('/app/update_publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1043,7 +1043,7 @@
       const notes = document.getElementById('ota-input-notes').value.trim();
       const force = document.getElementById('ota-input-force').checked;
 
-      fetch('/api/app/update_publish', {
+      fetch('/app/update_publish', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
