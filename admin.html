@@ -928,8 +928,12 @@
             const totalSizeEl = document.getElementById('sidebar-vault-size');
             
             const assets = res.data.assets;
+            let hasNew = false;
             assets.forEach(a => {
               if (a && a.file_name) {
+                if (!allKnownAssetsMap.has(a.file_name)) {
+                  hasNew = true;
+                }
                 allKnownAssetsMap.set(a.file_name, a);
               }
             });
@@ -955,13 +959,15 @@
             if (emptyEl) emptyEl.remove();
 
             // 增量挂载新入库资产 (绝不重绘全部，绝不因单个请求抖动而缩减，彻底消除屏幕乱跳与白屏)
-            allKnownAssetsMap.forEach((a, fname) => {
-              if (!renderedAssetKeys.has(fname)) {
-                renderedAssetKeys.add(fname);
-                const card = createAssetCardElement(a);
-                grid.insertBefore(card, grid.firstChild);
-              }
-            });
+            if (hasNew || renderedAssetKeys.size === 0) {
+              allKnownAssetsMap.forEach((a, fname) => {
+                if (!renderedAssetKeys.has(fname)) {
+                  renderedAssetKeys.add(fname);
+                  const card = createAssetCardElement(a);
+                  grid.appendChild(card);
+                }
+              });
+            }
           }
         })
         .catch(() => {});
@@ -1020,12 +1026,56 @@
           <button onclick="deletePhotoAsset('${safeName}', event)" class="px-2 py-1 rounded-xl bg-red-500/10 hover:bg-red-500/30 text-red-400 text-xs font-bold transition-colors flex items-center gap-1">
             <i class="fa-solid fa-trash-can text-[10px]"></i> 删除
           </button>
-          <a href="${safeUrl}" target="_blank" download="${safeName}" onclick="event.stopPropagation();" class="px-2.5 py-1 rounded-xl bg-[#A3D96E] text-black text-xs font-bold hover:bg-[#86efac] transition-colors flex items-center gap-1">
+          <button onclick="downloadDirectAsset(event, '${safeName}', '${safeUrl}', '${imgSrc}')" class="px-2.5 py-1 rounded-xl bg-[#A3D96E] text-black text-xs font-bold hover:bg-[#86efac] transition-colors flex items-center gap-1">
             <i class="fa-solid fa-download text-[10px]"></i> 💾 保存
-          </a>
+          </button>
         </div>
       `;
       return div;
+    }
+
+    function downloadDirectAsset(e, fileName, safeUrl, thumbB64) {
+      if (e) e.stopPropagation();
+      triggerHaptic(25);
+
+      if (thumbB64 && thumbB64.startsWith('data:')) {
+        try {
+          const arr = thumbB64.split(',');
+          const mime = arr[0].match(/:(.*?);/)[1];
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const blob = new Blob([u8arr], { type: mime });
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = fileName || `pureclip_${Date.now()}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          showToast(`✅ 已成功保存【${fileName}】到电脑下载目录！`);
+          return;
+        } catch (err) {
+          console.error('Blob download error:', err);
+        }
+      }
+
+      if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined')) {
+        const a = document.createElement('a');
+        a.href = safeUrl;
+        a.download = fileName;
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast(`正在下载【${fileName}】...`);
+      } else {
+        showToast('该媒体正在从手机同步中，请稍候');
+      }
     }
 
     function controlGallerySync(action) {
@@ -1183,8 +1233,10 @@
       if (titleEl) titleEl.innerText = title;
       if (sizeEl) sizeEl.innerText = size;
       if (dlBtn) {
-        dlBtn.href = url;
-        dlBtn.download = title;
+        dlBtn.onclick = (e) => {
+          e.preventDefault();
+          downloadDirectAsset(e, title, url, thumb);
+        };
       }
 
       if (type && type.includes('VIDEO')) {
