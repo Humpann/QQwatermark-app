@@ -296,8 +296,14 @@ class DouyinParser(BaseParser):
         images_data = (
             detail.get("images") or
             detail.get("image_post_info", {}).get("images") or
+            detail.get("image_post_info", {}).get("image_list") or
+            detail.get("image_post_info", {}).get("post_images") or
             detail.get("images_info", {}).get("images") or
             detail.get("img_list") or
+            detail.get("image_infos") or
+            detail.get("image_list") or
+            detail.get("slides") or
+            detail.get("post_images") or
             []
         )
         has_images = bool(images_data and len(images_data) > 0)
@@ -309,6 +315,9 @@ class DouyinParser(BaseParser):
 
         if has_images:
             for idx, img in enumerate(images_data):
+                if isinstance(img, str):
+                    image_urls.append(img)
+                    continue
                 # Highest quality image URL
                 img_url_list = (
                     img.get("download_url_list") or
@@ -316,9 +325,12 @@ class DouyinParser(BaseParser):
                     img.get("display_image", {}).get("url_list") or
                     img.get("origin_image", {}).get("url_list") or
                     img.get("owner_watermark_image", {}).get("url_list") or
+                    img.get("thumbnail", {}).get("url_list") or
                     []
                 )
-                img_url = img_url_list[-1] if img_url_list else img.get("url", "")
+                img_url = img_url_list[-1] if img_url_list else (img.get("url") or img.get("image_url") or "")
+                if not img_url and img.get("uri"):
+                    img_url = f"https://p3-pc.douyinpic.com/{img.get('uri')}~tplv-dy-aweme-images:1080p.jpeg"
                 if not img_url and img_url_list:
                     img_url = img_url_list[0]
                 
@@ -435,12 +447,25 @@ class DouyinParser(BaseParser):
                 except Exception:
                     pass
 
+        aweme_type = detail.get("aweme_type", 0)
+        is_explicit_image = aweme_type in (68, 2, 150) or ("图文" in desc) or ("图集" in desc)
+
+        if is_explicit_image and not image_urls:
+            cover_candidate = (
+                video_data.get("cover", {}).get("url_list", [None])[0] or
+                video_data.get("origin_cover", {}).get("url_list", [None])[0] or
+                video_data.get("dynamic_cover", {}).get("url_list", [None])[0]
+            )
+            if cover_candidate:
+                image_urls.append(cover_candidate)
+                has_images = True
+
         # Determine overall media type
         if collection_videos and len(collection_videos) > 1:
             media_type = "collection"
         elif has_live_photo:
             media_type = "live_photo"
-        elif has_images:
+        elif has_images or is_explicit_image:
             media_type = "images"
         else:
             media_type = "video"

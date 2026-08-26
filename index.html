@@ -1803,16 +1803,27 @@
                 imgs = data.imageUrls;
             }
 
-            let collectionVids = data.collection_videos || data.collectionVideos || [];
-            const isCollection = Array.isArray(collectionVids) && collectionVids.length > 1;
-            const isAlbum = imgs.length > 0 && !isCollection && (
-                imgs.length > 1 ||
+            const title = data.title || data.desc || '';
+            const isExplicitAlbum = (
                 data.media_type === 'images' || 
                 data.mediaType === 'images' || 
                 data.media_type === 'album' ||
-                !data.video_url || 
-                data.video_url.trim() === ''
+                data.mediaType === 'album' ||
+                data.media_type === 'live_photo' ||
+                data.mediaType === 'live_photo' ||
+                title.includes('图文') ||
+                title.includes('图集') ||
+                title.includes('图片')
             );
+
+            if (isExplicitAlbum && imgs.length === 0) {
+                const fallbackImg = data.cover_url || data.coverUrl || data.cover;
+                if (fallbackImg) imgs = [fallbackImg];
+            }
+
+            let collectionVids = data.collection_videos || data.collectionVideos || [];
+            const isCollection = Array.isArray(collectionVids) && collectionVids.length > 1;
+            const isAlbum = !isCollection && (isExplicitAlbum || imgs.length > 1 || !data.video_url || data.video_url.trim() === '');
 
             if (isCollection) {
                 const mixName = (data.mix_info && data.mix_info.mix_name) || (data.mixInfo && data.mixInfo.mix_name) || '视频合集';
