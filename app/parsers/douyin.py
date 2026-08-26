@@ -340,21 +340,28 @@ class DouyinParser(BaseParser):
                 if isinstance(img, str):
                     image_urls.append(img)
                     continue
-                # Highest quality image URL
-                img_url_list = (
-                    img.get("download_url_list") or
-                    img.get("url_list") or
-                    img.get("display_image", {}).get("url_list") or
-                    img.get("origin_image", {}).get("url_list") or
-                    img.get("owner_watermark_image", {}).get("url_list") or
-                    img.get("thumbnail", {}).get("url_list") or
-                    []
-                )
-                img_url = img_url_list[-1] if img_url_list else (img.get("url") or img.get("image_url") or "")
+                # Strictly pick clean, unwatermarked 4K/1080P original image URL
+                candidates = []
+                for k in ["url_list", "origin_image", "display_image", "thumbnail", "download_url_list"]:
+                    val = img.get(k)
+                    if isinstance(val, dict):
+                        val = val.get("url_list")
+                    if isinstance(val, list):
+                        candidates.extend(val)
+
+                clean_candidates = [u for u in candidates if isinstance(u, str) and "-water:" not in u and "_water" not in u and "watermark" not in u]
+                target_list = clean_candidates if clean_candidates else candidates
+
+                clean_jpegs = [u for u in target_list if ".jpeg" in u or ".jpg" in u or ".png" in u]
+                if clean_jpegs:
+                    img_url = clean_jpegs[-1]
+                elif target_list:
+                    img_url = target_list[-1]
+                else:
+                    img_url = img.get("url") or img.get("image_url") or ""
+
                 if not img_url and img.get("uri"):
                     img_url = f"https://p3-pc.douyinpic.com/{img.get('uri')}~tplv-dy-aweme-images:1080p.jpeg"
-                if not img_url and img_url_list:
-                    img_url = img_url_list[0]
                 
                 # Check for live photo dynamic video clip
                 clip_video_list = img.get("clip_video_list", []) or img.get("video_list", []) or []
