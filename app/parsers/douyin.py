@@ -84,7 +84,16 @@ class DouyinParser(BaseParser):
                     )
 
                 return await self._format_result(data, raw_url)
-
+            
+            except httpx.UnsupportedProtocol as e:
+                # Douyin might redirect some shortlinks directly to sslocal:// or snssdk:// to open the app
+                return ParseResult(
+                    success=False,
+                    error_message="该抖音链接已失效或要求直接打开APP（重定向至本地协议），请尝试复制完整作品链接",
+                    platform=self.platform_id,
+                    platform_name=self.platform_name,
+                    original_url=raw_url
+                )
             except Exception as e:
                 return ParseResult(
                     success=False,
