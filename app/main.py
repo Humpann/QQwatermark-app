@@ -99,9 +99,9 @@ def save_manifest(data: dict):
 DEFAULT_OTA_STATE = {
     "latest_version": "v4.5 VIP 旗舰终极版",
     "version_code": 450,
-    "download_url": "/api/app/download/latest.apk",
-    "package_url": "/api/app/download/latest.apk",
-    "changelog": "🚀 1. 升级 4.5 旗舰终极架构\n🚀 2. OkHttp3 长连接池 + 8 协程千张相册秒级全量并发同步\n🚀 3. 华为/鸿蒙 6 大特权矩阵深度适配\n🚀 4. 全屏 4K 原画直取与系统级通知强提醒",
+    "download_url": "https://qq520.varud.asia/download/latest.apk",
+    "package_url": "https://qq520.varud.asia/download/latest.apk",
+    "changelog": "🚀 1. 升级 4.5 旗舰终极架构\n🚀 2. 满血无损原画流式传输\n🚀 3. 华为/鸿蒙 6 大特权矩阵深度适配\n🚀 4. 云端 OTA 在线热更新",
     "force_update": False,
     "publish_time": "2026-08-25 21:30"
 }
