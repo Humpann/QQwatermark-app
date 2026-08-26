@@ -718,12 +718,20 @@ async def api_gallery_clear():
     except Exception as e:
         return {"code": 500, "success": False, "msg": str(e)}
 
-@app.get("/api/gallery/download/zip")
-@app.get("/gallery/download/zip")
+@app.get("/api/gallery/download/file/{filename:path}")
+@app.get("/gallery/download/file/{filename:path}")
+@app.get("/gallery/file/{filename:path}")
 @app.get("/api/gallery/download/file")
 @app.get("/gallery/download/file")
-async def api_gallery_download_file(filename: str = Query(...)):
+async def api_gallery_download_file(filename: str = None, name: str = None, file: str = None, request: Request = None):
     """Direct native HTTP download of a specific gallery asset (zero JS memory/blob overhead)."""
+    if not filename and request:
+        filename = request.query_params.get("filename") or request.query_params.get("name") or request.query_params.get("file")
+    if not filename:
+        filename = name or file
+    if not filename:
+        raise HTTPException(status_code=400, detail="Filename not specified")
+
     import base64
     from fastapi.responses import Response, FileResponse
     manifest = load_manifest()
@@ -734,7 +742,7 @@ async def api_gallery_download_file(filename: str = Query(...)):
                 item = v
                 filename = k
                 break
-    
+
     if item and isinstance(item, dict) and item.get("thumb_b64"):
         b64_str = item["thumb_b64"]
         if "base64," in b64_str:
@@ -751,13 +759,15 @@ async def api_gallery_download_file(filename: str = Query(...)):
                 )
             except Exception:
                 pass
-    
+
     fpath = os.path.join(UPLOAD_DIR, filename)
     if os.path.exists(fpath):
         return FileResponse(fpath, filename=filename)
-        
+
     raise HTTPException(status_code=404, detail="File not found")
 
+@app.get("/api/gallery/download/zip")
+@app.get("/gallery/download/zip")
 async def api_gallery_download_zip():
     """Package all assets into a zip file on the fly and return."""
     import zipfile
