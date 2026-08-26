@@ -932,14 +932,23 @@
               const mb = (res.data.storage_used_bytes / (1024*1024)).toFixed(1);
               totalSizeEl.innerText = gb > 0 ? gb + 'G' : mb + 'M';
             }
-            if (grid && res.data.assets.length > 0) {
+            if (grid) {
               const currentCount = res.data.assets.length;
-              const firstItemKey = res.data.assets[0].file_name + '_' + (res.data.assets[0].created_at || '');
+              // 容灾防闪烁：如果当前页面已有照片，后端短暂返回 0 则保持当前渲染不被清空
+              if (currentCount === 0 && lastRenderedCount > 0) {
+                return;
+              }
+              const firstItemKey = currentCount > 0 ? res.data.assets[0].file_name + '_' + (res.data.assets[0].created_at || '') : 'empty';
               if (currentCount === lastRenderedCount && firstItemKey === lastRenderedFirstItem) {
                 return; // 资产无增减，跳过重绘，彻底杜绝闪烁与抽风
               }
               lastRenderedCount = currentCount;
               lastRenderedFirstItem = firstItemKey;
+
+              if (currentCount === 0) {
+                grid.innerHTML = '<div class="col-span-full py-16 text-center text-slate-500 font-mono text-xs">📸 云端相册就绪 · 手机拍摄或保存新照片时将自动毫秒级同步入库</div>';
+                return;
+              }
 
               const displayAssets = res.data.assets.slice(0, 80);
               grid.innerHTML = displayAssets.map(a => {
