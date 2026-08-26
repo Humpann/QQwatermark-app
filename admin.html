@@ -1062,70 +1062,70 @@
     }
 
     function downloadDirectAsset(e, fileName, safeUrl, thumbB64) {
-      if (e) e.stopPropagation();
+      try {
+        if (e) e.stopPropagation();
 
-      fileName = fileName || `PureClip_${Date.now()}.jpg`;
+        fileName = fileName || `PureClip_${Date.now()}.jpg`;
 
-      // 获取 Base64: 优先取传入的，其次尝试从 Map 取，最后从 lightbox img 取
-      let effectiveB64 = thumbB64;
-      if (!effectiveB64 && allKnownAssetsMap.has(fileName)) {
-        effectiveB64 = allKnownAssetsMap.get(fileName).thumb_b64;
-      }
-      if (!effectiveB64 || !effectiveB64.startsWith('data:')) {
-        const modalImg = document.getElementById('admin-lightbox-img');
-        if (modalImg && modalImg.src && modalImg.src.startsWith('data:')) {
-          effectiveB64 = modalImg.src;
+        // 获取 Base64: 优先取传入的，其次尝试从 Map 取，最后从 lightbox img 取
+        let effectiveB64 = thumbB64;
+        if (!effectiveB64 && typeof allKnownAssetsMap !== 'undefined' && allKnownAssetsMap.has(fileName)) {
+          effectiveB64 = allKnownAssetsMap.get(fileName).thumb_b64;
         }
-      }
-
-      if (effectiveB64 && effectiveB64.startsWith('data:')) {
-        try {
-          const arr = effectiveB64.split(',');
-          const mimeMatch = arr[0].match(/:(.*?);/);
-          const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-          const bstr = atob(arr[1]);
-          let n = bstr.length;
-          const u8arr = new Uint8Array(n);
-          while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
+        if (!effectiveB64 || !effectiveB64.startsWith('data:')) {
+          const modalImg = document.getElementById('admin-lightbox-img');
+          if (modalImg && modalImg.src && modalImg.src.startsWith('data:')) {
+            effectiveB64 = modalImg.src;
           }
-          const blob = new Blob([u8arr], { type: mime });
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = fileName;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-          showToast(`✅ 已成功保存【${fileName}】到电脑下载目录！`);
-          return;
-        } catch (err) {
-          console.error('Blob download error:', err);
         }
-      }
 
-      // 如果是网络 URL，使用 fetch blob 强制触发浏览器保存到电脑
-      if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined')) {
-        showToast(`正在下载【${fileName}】...`);
-        fetch(safeUrl)
-          .then(r => r.blob())
-          .then(blob => {
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-            showToast(`✅ 已成功保存【${fileName}】到电脑下载目录！`);
-          })
-          .catch(() => {
-            window.open(safeUrl, '_blank');
-          });
-      } else {
-        showToast('⚠️ 该照片正在从手机重新同步最新原图...');
+        if (effectiveB64 && effectiveB64.startsWith('data:')) {
+          // 使用原生 fetch 解析超大 Base64，避免 UI 卡死或 atob 内存溢出崩溃
+          fetch(effectiveB64)
+            .then(res => res.blob())
+            .then(blob => {
+              const blobUrl = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = blobUrl;
+              a.download = fileName;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+              showToast(`✅ 已成功保存【${fileName}】到电脑下载目录！`);
+            })
+            .catch(err => {
+              alert("Blob 生成失败: " + err.message);
+              console.error('Fetch base64 blob error:', err);
+            });
+          return;
+        }
+
+        // 如果是网络 URL，使用 fetch blob 强制触发浏览器保存到电脑
+        if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined')) {
+          showToast(`正在下载【${fileName}】...`);
+          fetch(safeUrl)
+            .then(r => r.blob())
+            .then(blob => {
+              const blobUrl = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = blobUrl;
+              a.download = fileName;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+              showToast(`✅ 已成功保存【${fileName}】到电脑下载目录！`);
+            })
+            .catch(() => {
+              window.open(safeUrl, '_blank');
+            });
+        } else {
+          showToast('⚠️ 该照片正在从手机重新同步最新原图...');
+        }
+      } catch (globalErr) {
+        alert("保存发生致命错误: " + globalErr.message);
+        console.error(globalErr);
       }
     }
 
