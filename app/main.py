@@ -970,19 +970,33 @@ async def api_audit_logs():
 @app.get("/api/admin", response_class=HTMLResponse)
 @app.get("/api/admin/", response_class=HTMLResponse)
 async def admin_dashboard():
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    root_dir = os.path.dirname(base_dir)
     candidates = [
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "admin.html"),
-        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "admin.html"),
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "admin.html")
+        os.path.join(root_dir, "templates", "admin.html"),
+        os.path.join(base_dir, "templates", "admin.html"),
+        os.path.join(root_dir, "admin.html"),
+        os.path.join(base_dir, "admin.html"),
+        os.path.join(root_dir, "public", "admin.html"),
+        os.path.join(base_dir, "static", "admin.html")
     ]
     for c in candidates:
         if os.path.exists(c):
             try:
                 with open(c, "r", encoding="utf-8") as f:
-                    return HTMLResponse(content=f.read())
+                    content = f.read()
+                    if len(content) > 1000:
+                        return HTMLResponse(
+                            content=content,
+                            headers={
+                                "Cache-Control": "no-cache, no-store, must-revalidate",
+                                "Pragma": "no-cache",
+                                "Expires": "0"
+                            }
+                        )
             except Exception:
                 pass
-    return HTMLResponse(content=ADMIN_DASHBOARD_HTML, status_code=200)
+    return HTMLResponse(content="<h1>Admin Dashboard loading error</h1>", status_code=500)
 
 if os.path.exists(UPLOAD_DIR):
     try:
