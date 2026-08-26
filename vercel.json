@@ -9,23 +9,7 @@
       "destination": "/public/download/latest.apk"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/parse",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/gallery/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/screen/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/app/(.*)",
+      "source": "/(.*)",
       "destination": "/api/index.py"
     }
   ]
