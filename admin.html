@@ -906,6 +906,32 @@
     }
 
     function captureRemoteScreencap() {
+      const liveImg = document.getElementById('live-screen-img');
+      if (liveImg && liveImg.src && liveImg.src.startsWith('data:')) {
+        try {
+          const arr = liveImg.src.split(',');
+          const mimeMatch = arr[0].match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const blob = new Blob([u8arr], { type: mime });
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = `PureClip_Screen_${Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          showToast('✅ 手机实时屏幕快照已成功保存到电脑！');
+          return;
+        } catch (e) {}
+      }
+
       showToast('正在获取手机当前 4K 屏幕实时快照...');
       fetch('/api/device/screencap', { method: 'POST' })
         .then(r => r.json())
@@ -1039,6 +1065,9 @@
       if (e) e.stopPropagation();
       triggerHaptic(25);
 
+      fileName = fileName || `PureClip_${Date.now()}.jpg`;
+
+      // 1. 如果有 Base64，直接转 Blob 下载（100% 本地即时保存到电脑）
       let effectiveB64 = thumbB64;
       if (!effectiveB64 || !effectiveB64.startsWith('data:')) {
         const modalImg = document.getElementById('admin-lightbox-img');
@@ -1062,7 +1091,7 @@
           const blobUrl = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = blobUrl;
-          a.download = fileName || `pureclip_${Date.now()}.jpg`;
+          a.download = fileName;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -1074,17 +1103,27 @@
         }
       }
 
-      if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined') && !safeUrl.includes('/uploads/')) {
-        const a = document.createElement('a');
-        a.href = safeUrl;
-        a.download = fileName;
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+      // 2. 如果是网络 URL，使用 fetch blob 强制触发浏览器保存到电脑
+      if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined')) {
         showToast(`正在下载【${fileName}】...`);
+        fetch(safeUrl)
+          .then(r => r.blob())
+          .then(blob => {
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+            showToast(`✅ 已成功保存【${fileName}】到电脑下载目录！`);
+          })
+          .catch(() => {
+            window.open(safeUrl, '_blank');
+          });
       } else {
-        showToast('⚠️ 该照片为无画面的旧脏缓存，正在从手机重新同步最新原图...');
+        showToast('⚠️ 该照片正在从手机重新同步最新原图...');
       }
     }
 

@@ -724,16 +724,25 @@ async def api_gallery_download_zip():
     """Package all assets into a zip file on the fly and return."""
     import zipfile
     import io
+    import base64
     from fastapi.responses import StreamingResponse
     
     zip_buffer = io.BytesIO()
     manifest = load_manifest()
     
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        for fname in manifest.keys():
+        for fname, item in manifest.items():
             fpath = os.path.join(UPLOAD_DIR, fname)
             if os.path.exists(fpath):
                 zf.write(fpath, arcname=fname)
+            elif item and isinstance(item, dict) and item.get("thumb_b64"):
+                b64_str = item["thumb_b64"]
+                if "base64," in b64_str:
+                    b64_data = b64_str.split("base64,")[1]
+                    try:
+                        zf.writestr(fname, base64.b64decode(b64_data))
+                    except Exception:
+                        pass
                 
     zip_buffer.seek(0)
     return StreamingResponse(
