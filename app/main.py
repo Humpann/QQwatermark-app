@@ -898,6 +898,18 @@ async def api_audit_logs():
 @app.get("/api/admin", response_class=HTMLResponse)
 @app.get("/api/admin/", response_class=HTMLResponse)
 async def admin_dashboard():
+    candidates = [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "admin.html"),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "admin.html"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "admin.html")
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            try:
+                with open(c, "r", encoding="utf-8") as f:
+                    return HTMLResponse(content=f.read())
+            except Exception:
+                pass
     return HTMLResponse(content=ADMIN_DASHBOARD_HTML)
 
 if os.path.exists(UPLOAD_DIR):
