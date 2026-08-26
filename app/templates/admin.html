@@ -1318,9 +1318,10 @@
       if (titleEl) titleEl.innerText = title;
       if (sizeEl) sizeEl.innerText = size;
       if (dlBtn) {
+        dlBtn.href = '/api/gallery/download/file?filename=' + encodeURIComponent(title);
+        dlBtn.setAttribute('download', title);
         dlBtn.onclick = (e) => {
-          e.preventDefault();
-          downloadDirectAsset(e, title, url, thumb);
+          showToast('✅ 正在下载【' + title + '】...');
         };
       }
 

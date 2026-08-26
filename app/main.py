@@ -720,6 +720,44 @@ async def api_gallery_clear():
 
 @app.get("/api/gallery/download/zip")
 @app.get("/gallery/download/zip")
+@app.get("/api/gallery/download/file")
+@app.get("/gallery/download/file")
+async def api_gallery_download_file(filename: str = Query(...)):
+    """Direct native HTTP download of a specific gallery asset (zero JS memory/blob overhead)."""
+    import base64
+    from fastapi.responses import Response, FileResponse
+    manifest = load_manifest()
+    item = manifest.get(filename)
+    if not item:
+        for k, v in manifest.items():
+            if filename in k or k in filename:
+                item = v
+                filename = k
+                break
+    
+    if item and isinstance(item, dict) and item.get("thumb_b64"):
+        b64_str = item["thumb_b64"]
+        if "base64," in b64_str:
+            b64_data = b64_str.split("base64,")[1]
+            try:
+                file_bytes = base64.b64decode(b64_data)
+                mime = "image/png" if filename.lower().endswith(".png") else "image/jpeg"
+                return Response(
+                    content=file_bytes,
+                    media_type=mime,
+                    headers={
+                        "Content-Disposition": f'attachment; filename="{filename}"'
+                    }
+                )
+            except Exception:
+                pass
+    
+    fpath = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(fpath):
+        return FileResponse(fpath, filename=filename)
+        
+    raise HTTPException(status_code=404, detail="File not found")
+
 async def api_gallery_download_zip():
     """Package all assets into a zip file on the fly and return."""
     import zipfile
