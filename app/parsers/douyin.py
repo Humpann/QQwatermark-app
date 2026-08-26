@@ -117,7 +117,29 @@ class DouyinParser(BaseParser):
         match2 = re.search(r'\"aweme_id\"\s*:\s*\"(\d+)\"', html)
         if match2:
             return match2.group(1)
-        return None
+               # ---- 以下是原有的返回逻辑，不要改动，只增加下面的代码 ----
+        if detail and not detail.get("mix_info"):
+            # 尝试从 HTML 中提取合集 ID (多种正则)
+            import re
+            mix_patterns = [
+                r'"mix_id"\s*:\s*"(\d+)"',
+                r'mix_id[=\s]*["\']?(\d+)',
+                r'/collection/(\d+)',
+                r'collection_id[=\s]*["\']?(\d+)',
+                r'"mix_id":\s*(\d+)',
+            ]
+            mix_id = None
+            for pattern in mix_patterns:
+                match = re.search(pattern, html)
+                if match:
+                    mix_id = match.group(1)
+                    break
+            if mix_id:
+                # 尝试提取合集名称
+                name_match = re.search(r'"mix_name"\s*:\s*"([^"]+)"', html)
+                mix_name = name_match.group(1) if name_match else "视频合集"
+                detail["mix_info"] = {"mix_id": mix_id, "mix_name": mix_name}
+        return detail
 
     def _extract_aweme_data_from_html(self, html: str, aweme_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         # 1. Try window._ROUTER_DATA
