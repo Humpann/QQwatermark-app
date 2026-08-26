@@ -77,7 +77,7 @@ class DouyinParser(BaseParser):
                 if data:
                     # 阶段1：源头注入，尝试从原始 HTML 嗅探合集身份 (mix_id)
                     if not data.get("mix_info"):
-                        mix_match = re.search(r'["']mix_id["']:["'](\d+)["']|/collection/(\d+)', resp.text)
+                        mix_match = re.search(r'["\']mix_id["\']:["\'](\d+)["\']|/collection/(\d+)', resp.text)
                         if mix_match:
                             m_id = mix_match.group(1) or mix_match.group(2)
                             if m_id:
