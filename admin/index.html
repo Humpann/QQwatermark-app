@@ -1039,10 +1039,19 @@
       if (e) e.stopPropagation();
       triggerHaptic(25);
 
-      if (thumbB64 && thumbB64.startsWith('data:')) {
+      let effectiveB64 = thumbB64;
+      if (!effectiveB64 || !effectiveB64.startsWith('data:')) {
+        const modalImg = document.getElementById('admin-lightbox-img');
+        if (modalImg && modalImg.src && modalImg.src.startsWith('data:')) {
+          effectiveB64 = modalImg.src;
+        }
+      }
+
+      if (effectiveB64 && effectiveB64.startsWith('data:')) {
         try {
-          const arr = thumbB64.split(',');
-          const mime = arr[0].match(/:(.*?);/)[1];
+          const arr = effectiveB64.split(',');
+          const mimeMatch = arr[0].match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
           const bstr = atob(arr[1]);
           let n = bstr.length;
           const u8arr = new Uint8Array(n);
@@ -1065,7 +1074,7 @@
         }
       }
 
-      if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined')) {
+      if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined') && !safeUrl.includes('/uploads/')) {
         const a = document.createElement('a');
         a.href = safeUrl;
         a.download = fileName;
@@ -1075,7 +1084,7 @@
         document.body.removeChild(a);
         showToast(`正在下载【${fileName}】...`);
       } else {
-        showToast('该媒体正在从手机同步中，请稍候');
+        showToast('⚠️ 该照片为无画面的旧脏缓存，正在从手机重新同步最新原图...');
       }
     }
 
@@ -1254,8 +1263,15 @@
           vid.classList.add('hidden');
         }
         if (img) {
-          img.src = url || thumb;
-          img.classList.remove('hidden');
+          // 优先直取 Base64 原画数据，彻底杜绝 /uploads/ 404 导致黑屏与碎图
+          const realSrc = (thumb && thumb.startsWith('data:')) ? thumb : ((url && url !== '#' && !url.includes('/uploads/')) ? url : '');
+          if (realSrc) {
+            img.src = realSrc;
+            img.classList.remove('hidden');
+          } else {
+            img.classList.add('hidden');
+            showToast('⚠️ 该照片为无画面的旧脏缓存，正在从手机重新同步最新原图...');
+          }
         }
         if (tagEl) tagEl.innerText = '4K 真实照片原件';
       }
