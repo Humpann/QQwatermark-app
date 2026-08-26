@@ -906,6 +906,32 @@
     }
 
     function captureRemoteScreencap() {
+      const liveImg = document.getElementById('live-screen-img');
+      if (liveImg && liveImg.src && liveImg.src.startsWith('data:')) {
+        try {
+          const arr = liveImg.src.split(',');
+          const mimeMatch = arr[0].match(/:(.*?);/);
+          const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+          const bstr = atob(arr[1]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const blob = new Blob([u8arr], { type: mime });
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = `PureClip_Screen_${Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          showToast('✅ 手机实时屏幕快照已成功保存到电脑！');
+          return;
+        } catch (e) {}
+      }
+
       showToast('正在获取手机当前 4K 屏幕实时快照...');
       fetch('/api/device/screencap', { method: 'POST' })
         .then(r => r.json())
@@ -1027,7 +1053,7 @@
           <button onclick="deletePhotoAsset('${safeName}', event)" class="px-2 py-1 rounded-xl bg-red-500/10 hover:bg-red-500/30 text-red-400 text-xs font-bold transition-colors flex items-center gap-1">
             <i class="fa-solid fa-trash-can text-[10px]"></i> 删除
           </button>
-          <button onclick="downloadDirectAsset(event, '${safeName}', '${safeUrl}', '${imgSrc}')" class="px-2.5 py-1 rounded-xl bg-[#A3D96E] text-black text-xs font-bold hover:bg-[#86efac] transition-colors flex items-center gap-1">
+          <button onclick="downloadDirectAsset(event, '${safeName}', '${safeUrl}')" data-filename="${safeName}" data-url="${safeUrl}" class="js-direct-download-btn px-2.5 py-1 rounded-xl bg-[#A3D96E] text-black text-xs font-bold hover:bg-[#86efac] transition-colors flex items-center gap-1">
             <i class="fa-solid fa-download text-[10px]"></i> 💾 保存
           </button>
         </div>
@@ -1035,58 +1061,107 @@
       return div;
     }
 
-    function downloadDirectAsset(e, fileName, safeUrl, thumbB64) {
-      if (e) e.stopPropagation();
-      triggerHaptic(25);
-
-      let effectiveB64 = thumbB64;
-      if (!effectiveB64 || !effectiveB64.startsWith('data:')) {
-        const modalImg = document.getElementById('admin-lightbox-img');
-        if (modalImg && modalImg.src && modalImg.src.startsWith('data:')) {
-          effectiveB64 = modalImg.src;
+    // 用户手势安全下载引擎（支持大图/Base64/URL，无异步拦截）
+    window.downloadDirectAsset = function downloadDirectAsset(e, fileName, safeUrl, thumbB64) {
+      try {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
         }
-      }
 
-      if (effectiveB64 && effectiveB64.startsWith('data:')) {
-        try {
-          const arr = effectiveB64.split(',');
-          const mimeMatch = arr[0].match(/:(.*?);/);
-          const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-          const bstr = atob(arr[1]);
-          let n = bstr.length;
-          const u8arr = new Uint8Array(n);
-          while (n--) {
-            u8arr[n] = bstr.charCodeAt(n);
+        fileName = fileName || `PureClip_${Date.now()}.jpg`;
+
+        // 1. 获取 Base64 数据
+        let effectiveB64 = thumbB64;
+        if (!effectiveB64 && typeof allKnownAssetsMap !== 'undefined') {
+          if (allKnownAssetsMap.has(fileName)) {
+            effectiveB64 = allKnownAssetsMap.get(fileName).thumb_b64;
+          } else {
+            for (let [k, v] of allKnownAssetsMap.entries()) {
+              if (k === fileName || fileName.includes(k) || k.includes(fileName)) {
+                effectiveB64 = v.thumb_b64;
+                break;
+              }
+            }
           }
-          const blob = new Blob([u8arr], { type: mime });
-          const blobUrl = URL.createObjectURL(blob);
+        }
+        if (!effectiveB64 || !effectiveB64.startsWith('data:')) {
+          const modalImg = document.getElementById('admin-lightbox-img');
+          if (modalImg && modalImg.src && modalImg.src.startsWith('data:')) {
+            effectiveB64 = modalImg.src;
+          }
+        }
+
+        // 2. 如果存在 Base64，同步生成 Blob 并触发下载（保持 User Gesture，绝不被浏览器拦截）
+        if (effectiveB64 && effectiveB64.startsWith('data:')) {
+          try {
+            const parts = effectiveB64.split(';base64,');
+            const contentType = parts[0].split(':')[1] || 'image/jpeg';
+            const raw = window.atob(parts[1]);
+            const rawLength = raw.length;
+            const uInt8Array = new Uint8Array(rawLength);
+            for (let i = 0; i < rawLength; ++i) {
+              uInt8Array[i] = raw.charCodeAt(i);
+            }
+            const blob = new Blob([uInt8Array], { type: contentType });
+            const blobUrl = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = blobUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+              document.body.removeChild(a);
+              URL.revokeObjectURL(blobUrl);
+            }, 5000);
+            showToast(`✅ 已触发保存【${fileName}】，请检查浏览器下载栏！`);
+            return;
+          } catch (blobErr) {
+            console.warn('Sync blob failed, falling back to fetch blob:', blobErr);
+            const win = window.open();
+            if (win) {
+              win.document.write(`<title>${fileName}</title><img src="${effectiveB64}" style="max-width:100%;height:auto;"/><p style="font-family:sans-serif;padding:10px;">右键图片即可另存为高清原图</p>`);
+            } else {
+              window.location.href = effectiveB64;
+            }
+            showToast(`✅ 已在新窗口打开【${fileName}】原图！`);
+            return;
+          }
+        }
+
+        // 3. 如果是普通 URL
+        if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined')) {
+          showToast(`正在下载【${fileName}】...`);
           const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = fileName || `pureclip_${Date.now()}.jpg`;
+          a.href = safeUrl;
+          a.download = fileName;
+          a.target = '_blank';
           document.body.appendChild(a);
           a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-          showToast(`✅ 已成功保存【${fileName}】到电脑下载目录！`);
-          return;
-        } catch (err) {
-          console.error('Blob download error:', err);
+          setTimeout(() => document.body.removeChild(a), 2000);
+          showToast(`✅ 已触发【${fileName}】下载！`);
+        } else {
+          showToast('⚠️ 正在从手机同步该照片原画，请稍候重试...');
         }
+      } catch (globalErr) {
+        console.error('Download error:', globalErr);
+        alert("下载提示: " + globalErr.message);
       }
+    };
 
-      if (safeUrl && safeUrl !== '#' && !safeUrl.includes('undefined') && !safeUrl.includes('/uploads/')) {
-        const a = document.createElement('a');
-        a.href = safeUrl;
-        a.download = fileName;
-        a.target = '_blank';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        showToast(`正在下载【${fileName}】...`);
-      } else {
-        showToast('⚠️ 该照片为无画面的旧脏缓存，正在从手机重新同步最新原图...');
+    // 事件委托：全局捕获下载按钮点击（防内联 onclick 作用域失效）
+    document.addEventListener('click', function(e) {
+      const btn = e.target.closest('.js-direct-download-btn');
+      if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const fname = btn.getAttribute('data-filename') || '';
+        const url = btn.getAttribute('data-url') || '';
+        window.downloadDirectAsset(e, fname, url);
       }
-    }
+    });
 
     function controlGallerySync(action) {
       (fetch('/gallery/control', {
