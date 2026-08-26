@@ -1,17 +1,8 @@
 {
-  "headers": [
-    {
-      "source": "/(.*)admin(.*)",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate, max-age=0" },
-        { "key": "Pragma", "value": "no-cache" },
-        { "key": "Expires", "value": "0" }
-      ]
-    }
-  ],
   "rewrites": [
-    { "source": "/admin", "destination": "/admin.html" },
-    { "source": "/admin/", "destination": "/admin.html" },
+    { "source": "/admin", "destination": "/api/index.py?__path__=/admin" },
+    { "source": "/admin/", "destination": "/api/index.py?__path__=/admin" },
+    { "source": "/admin.html", "destination": "/api/index.py?__path__=/admin" },
     { "source": "/parse", "destination": "/api/index.py?__path__=/parse" },
     { "source": "/api/parse", "destination": "/api/index.py?__path__=/api/parse" },
     { "source": "/api/(.*)", "destination": "/api/index.py?__path__=/api/$1" },
